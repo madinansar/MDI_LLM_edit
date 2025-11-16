@@ -280,3 +280,81 @@ class SecondaryNode(NodePrototype):
         for block in self.transformer.h:
             idx = block(idx, cos, sin, mask, input_pos)
         return idx
+
+#madina
+class FinisherNode(NodePrototype):
+    """Finisher worker node (last in the chain)"""
+
+    params_init = False
+
+    def __init__(
+        self,
+        config: Config,
+        n_transf_layers: int,
+        **kwargs,
+    ):
+        """
+        Args:
+            config: Config object with the model setup parameters
+            n_transf_layers: number of local transformer layers
+            [**kwargs]
+        """
+        super().__init__(**kwargs)
+        assert config.vocab_size is not None
+        self.config = config
+
+        # Follow naming convention
+        self.transformer = nn.ModuleDict(
+            dict(
+                h=nn.ModuleList([Block(config) for _ in range(n_transf_layers)]),
+                # Add final layers from StarterNode
+                ln_f=config.norm_class(config.n_embd, eps=config.norm_eps),
+            )
+        )
+        # Add lm_head from StarterNode
+        self.lm_head = nn.Linear(
+            config.n_embd, config.padded_vocab_size, bias=config.lm_head_bias
+        )
+        self.max_seq_length = self.config.block_size
+
+    def load_weights(self, params: Dict[str, Any], **kwargs) -> int:
+        """Load weights"""
+        # This is identical to SecondaryNode
+        init_from_state_dict(self, params)
+        self.params_init = True
+        if self.verb:
+            print(f"Weights loaded!")
+        return 1
+
+    def forward(
+        self, idx: torch.Tensor, input_pos: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """Forward pass - finisher node"""
+        T = idx.size(1)
+        if self.max_seq_length < T:
+            raise ValueError(
+                f"Cannot forward sequence of length {T}, max seq length is only {self.max_seq_length}."
+            )
+
+        if input_pos is not None:  # use the kv cache
+            cos = self.cos.index_select(0, input_pos)
+            sin = self.sin.index_select(0, input_pos)
+            if self.mask_cache is None:
+                raise TypeError("You need to call `gpt.set_kv_cache()`")
+            mask = self.mask_cache.index_select(2, input_pos)
+        else:
+            cos = self.cos[:T]
+            sin = self.sin[:T]
+            mask = None
+
+        # Run through transformer blocks
+        for block in self.transformer.h:
+            idx = block(idx, cos, sin, mask, input_pos)
+        
+        # --- This is the new part ---
+        # Run through final layers
+        idx = self.transformer.ln_f(idx)
+        logits = self.lm_head(idx)
+        # --- End new part ---
+
+        return logits # Return logits, not hidden state

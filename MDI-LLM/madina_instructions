@@ -31,19 +31,17 @@ python3.10 src/fastapi_gateway.py \
 python3.10 ./src/prepare_model.py meta-llama/Llama-3.2-1B --n-nodes 3 --hf-token "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"
 
 python3.10 ./src/secondary.py \
---chunk ./src/checkpoints/meta-llama/Llama-3.2-1B/chunks/3nodes/model_secondary0.pth \
+--chunk ./src/checkpoints/meta-llama/Llama-3.2-1B/chunks/3nodes_finisher/model_secondary0.pth \
 --nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
 0 \
 -v
 
 
 python3.10 ./src/secondary.py \
---chunk ./src/checkpoints/meta-llama/Llama-3.2-1B/chunks/3nodes/model_secondary1.pth \
+--chunk ./src/checkpoints/meta-llama/Llama-3.2-1B/chunks/3nodes_finisher/model_secondary1.pth \
 --nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
 1 \
  -v
-
-
 
 python3.10 src/fastapi_gateway.py \
 --host 0.0.0.0 \

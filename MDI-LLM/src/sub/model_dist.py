@@ -230,7 +230,10 @@ class GPTDistributed:
                 node_chunks_dir = self.chunk_path.resolve().parent
                 self.model_was_split = True
             else:
-                node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes"
+                #madina
+                # node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes"
+                # This is the fix. It now looks for ".../3nodes_finisher/"
+                node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes_finisher"
                 self.model_was_split = node_chunks_dir.is_dir()
 
             if not self.model_was_split and self.n_nodes > 1:

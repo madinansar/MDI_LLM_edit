@@ -49,6 +49,7 @@ from sub.typing import FileType
 from sub.utils import (catch_loop_errors, count_transformer_blocks,
                        detect_stop_tokens, find_eot, load_sd,
                        plot_tokens_per_time, waiting_animation)
+from sub.submodels import SecondaryNode, StarterNode, FinisherNode #madina
 
 # -------------------------------------------------------------------------------------
 
@@ -177,16 +178,21 @@ class GPTServer:
         """
         # NOTE: this implementation supports running 1 node only
         # Override global constants with kwargs
+        # Override global constants with kwargs
         if "verb" in kwargs:
             global VERB
             VERB = bool(kwargs["verb"])
             if VERB:
                 print(f"Overriding 'verb': {VERB}")
+        
+        self.verb = VERB  # <-- ADD THIS LINE
+
         if "plots" in kwargs:
             global PLOTS
             PLOTS = bool(kwargs["plots"])
             if VERB:
                 print(f"Overriding 'plots': {PLOTS}")
+                
         if "model_type" in kwargs:
             self.model_type = str(kwargs["model_type"])
             if VERB:
@@ -664,7 +670,29 @@ class GPTServer:
         if VERB:
             print("Initializing empty local model")
 
-        Model_class = StarterNode if "starter" in self.node_type else SecondaryNode
+        #madina
+        # Model_class = StarterNode if "starter" in self.node_type else SecondaryNode
+        if "starter" in self.node_type:
+            Model_class = StarterNode
+        else:
+            # Check if this is the last secondary node
+            # self.n_nodes is total nodes (e.g., 3)
+            # self.role is "secondary:index" (e.g., "secondary:1")
+
+            secondary_index = int(self.role.split(":")[-1])
+
+            # Total nodes = 3. Last secondary index = 1. (n_nodes - 2)
+            finisher_index = self.n_nodes - 2
+
+            if secondary_index == finisher_index:
+                Model_class = FinisherNode
+                if self.verb:
+                    print("[INFO] Initializing as FinisherNode")
+            else:
+                Model_class = SecondaryNode
+                if self.verb:
+                    print(f"[INFO] Initializing as SecondaryNode {secondary_index}")
+                    
         try:
             self.model = Model_class(self.model_config, n_transf_layers).to_empty(
                 device=self.model_device
@@ -963,12 +991,23 @@ class GPTServer:
                                     print(f"  Current token sequence: {decoded_text}")
                             print(f"{'='*80}\n")
 
+                        # # Keep variable iter_ind[i] for each sample i
+                        # if self.iter_ind[sample_id] >= 1:
+                        #     # print("OUTPUT")
+                        #     # We are not in the first iteration for this sample
+                        #     # --> Can start processing messages from last secondary node
+                        #     logits = self.model(idx, first_pass=False)
                         # Keep variable iter_ind[i] for each sample i
+                        #madina
                         if self.iter_ind[sample_id] >= 1:
                             # print("OUTPUT")
                             # We are not in the first iteration for this sample
                             # --> Can start processing messages from last secondary node
-                            logits = self.model(idx, first_pass=False)
+                            
+                            # [THE FIX]
+                            # 'idx' is already the final logits from secondary 1.
+                            # Do not re-process it.
+                            logits = idx
                             
                             # DEBUG: Show logits and sampling
                             if VERB:
