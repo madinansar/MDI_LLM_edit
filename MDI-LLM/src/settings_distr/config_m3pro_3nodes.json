@@ -1,0 +1,46 @@
+{
+    "nodes": {
+      "starter": {
+        "addr": "127.0.0.1",
+        "communication": {
+          "port": 8088
+        },
+        "inference": {
+          "port_in": 5088,
+          "port_out": 5089
+        },
+        "device": "cpu",
+        "comment": "Starter node: 4 transformer layers + embeddings + output head"
+      },
+      "secondary": [
+        {
+          "addr": "127.0.0.1",
+          "communication": {
+            "starter_addr": "127.0.0.1",
+            "port": 8090
+          },
+          "inference": {
+            "port_in": 5092,
+            "port_out": 5093
+          },
+          "device": "cpu",
+          "comment": "Secondary node 0: 6 transformer layers"
+        },
+        {
+          "addr": "127.0.0.1",
+          "communication": {
+            "starter_addr": "127.0.0.1",
+            "port": 8091
+          },
+          "inference": {
+            "port_in": 5094,
+            "port_out": 5095
+          },
+          "device": "cpu",  
+          "comment": "Secondary node 1: 6 transformer layers"
+        }
+      ]
+    }
+  }
+  
+   

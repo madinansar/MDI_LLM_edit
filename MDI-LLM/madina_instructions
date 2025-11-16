@@ -1,0 +1,56 @@
+//download model
+python3.10 ./src/prepare_model.py meta-llama/Llama-3.2-1B --n-nodes 3 --hf-token "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"
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/meta-llama/Llama-3.2-1B/chunks/3nodes/model_secondary0.pth \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
+0 \
+-v
+
+
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/meta-llama/Llama-3.2-1B/chunks/3nodes/model_secondary1.pth \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
+1 \
+ -v
+
+
+
+python3.10 src/fastapi_gateway.py \
+--host 0.0.0.0 \
+--port 8000 \
+--ckpt ./src/checkpoints/meta-llama/Llama-3.2-1B \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
+--sequence-length 1024
+
+
+//with finisher
+
+//download model
+python3.10 ./src/prepare_model.py meta-llama/Llama-3.2-1B --n-nodes 3 --hf-token "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"
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/meta-llama/Llama-3.2-1B/chunks/3nodes/model_secondary0.pth \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
+0 \
+-v
+
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/meta-llama/Llama-3.2-1B/chunks/3nodes/model_secondary1.pth \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
+1 \
+ -v
+
+
+
+python3.10 src/fastapi_gateway.py \
+--host 0.0.0.0 \
+--port 8000 \
+--ckpt ./src/checkpoints/meta-llama/Llama-3.2-1B \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
+--sequence-length 1024
+
+
+now my model is with finisher, but i renamed it node 3nodes/ 

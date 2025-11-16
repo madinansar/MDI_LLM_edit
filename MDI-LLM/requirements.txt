@@ -1,0 +1,20 @@
+numpy<2.0
+pandas
+scikit-learn
+torch <= 2.1.2
+matplotlib
+transformers
+datasets
+tiktoken
+wandb
+tqdm
+cherrypy
+psutil
+gputil
+sentencepiece
+tokenizers
+accelerate
+huggingface-hub >= 0.23.0
+fastapi
+uvicorn
+pydantic
