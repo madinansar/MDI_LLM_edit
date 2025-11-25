@@ -43,7 +43,6 @@ from sub.connections import InputNodeConnection, OutputNodeConnection
 from sub.model import Config, KVCache, sample
 from sub.prompts import (PromptStyle, get_user_prompt, has_prompt_style,
                          load_prompt_style)
-from sub.submodels import SecondaryNode, StarterNode
 from sub.tokenizer import Tokenizer
 from sub.typing import FileType
 from sub.utils import (catch_loop_errors, count_transformer_blocks,
@@ -1004,31 +1003,41 @@ class GPTServer:
                             # We are not in the first iteration for this sample
                             # --> Can start processing messages from last secondary node
                             
-                            # [THE FIX]
-                            # 'idx' is already the final logits from secondary 1.
-                            # Do not re-process it.
-                            logits = idx
+                            # # [THE FIX]
+                            # # 'idx' is already the final logits from secondary 1.
+                            # # Do not re-process it.
+                            # logits = idx
                             
-                            # DEBUG: Show logits and sampling
-                            if VERB:
-                                print(f"[STARTER SAMPLING] Sample {sample_id}")
-                                print(f"  Logits shape: {logits.shape}")
-                                print(f"  Logits stats: min={logits.min().item():.4f}, max={logits.max().item():.4f}, mean={logits.mean().item():.4f}")
-                                print(f"  Top 5 logits: {logits[0, -1, :].topk(5).values.tolist()}")
-                                print(f"  Top 5 indices: {logits[0, -1, :].topk(5).indices.tolist()}")
+                            # # DEBUG: Show logits and sampling
+                            # if VERB:
+                            #     print(f"[STARTER SAMPLING] Sample {sample_id}")
+                            #     print(f"  Logits shape: {logits.shape}")
+                            #     print(f"  Logits stats: min={logits.min().item():.4f}, max={logits.max().item():.4f}, mean={logits.mean().item():.4f}")
+                            #     print(f"  Top 5 logits: {logits[0, -1, :].topk(5).values.tolist()}")
+                            #     print(f"  Top 5 indices: {logits[0, -1, :].topk(5).indices.tolist()}")
                             
-                            idx_next = sample(
-                                logits,
-                                temperature=self.temperature,
-                                top_k=self.top_k,
-                            )
-                            idx_next = idx_next.view(1, -1)
+                            # idx_next = sample(
+                            #     logits,
+                            #     temperature=self.temperature,
+                            #     top_k=self.top_k,
+                            # )
+                            # idx_next = idx_next.view(1, -1)
                             
-                            # DEBUG: Show sampled token
+                            # # DEBUG: Show sampled token
+                            # if VERB and hasattr(self, 'tok') and self.tok is not None:
+                            #     sampled_token = self.tok.decode(idx_next.squeeze())
+                            #     print(f"  Sampled token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
+                            
+                            # [NEW ARCHITECTURE]
+                            # 'idx' is now the finished TOKEN ID received from secondary 1.
+                            # We do not need to sample anymore. We just resize it.
+                            idx_next = idx.view(1, -1)
+                            
+                            # DEBUG: Show the token we received
                             if VERB and hasattr(self, 'tok') and self.tok is not None:
                                 sampled_token = self.tok.decode(idx_next.squeeze())
-                                print(f"  Sampled token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
-                            
+                                print(f"  Received Token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
+
                             self.samples[sample_id] = torch.cat(
                                 (self.samples[sample_id], idx_next), dim=1
                             )
@@ -1230,10 +1239,25 @@ class GPTServer:
                         curr_kvcache = self.kvcaches[sample_id]
                         for ind_b, block in enumerate(self.model.transformer.h):
                             block.attn.kv_cache = curr_kvcache[ind_b]
-
+                        
+                        #madina
                         # Forward pass
                         outs = self.model(idx, input_pos=self.input_pos[sample_id])
 
+                        # [NEW CODE] If this is the Finisher, generate the token here!
+                        # CORRECT - This checks the class type we assigned in _init_model
+                        if isinstance(self.model, FinisherNode):
+                             # 'outs' is currently logits [1, 1, vocab_size]
+                             # We sample from it right here to get the token ID [1, 1]
+                             outs = sample(outs, temperature=self.temperature, top_k=self.top_k)
+                             
+                             # [LOGGING REQUEST] Log the exact generation time
+                             import datetime
+                             current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                             print(f"\n[FINISHER LOG] Token generated at {current_time}")
+                             print(f"[FINISHER LOG] Token ID: {outs.item()}\n")
+
+                        # DEBUG: Show what secondary node is sending
                         # DEBUG: Show what secondary node is sending
                         if VERB:
                             print(f"\n{'='*80}")
@@ -1241,8 +1265,15 @@ class GPTServer:
                             print(f"  Output activation shape: {outs.shape}")
                             print(f"  Output activation dtype: {outs.dtype}")
                             print(f"  Output activation device: {outs.device}")
-                            print(f"  Output activation stats: min={outs.min().item():.4f}, max={outs.max().item():.4f}, mean={outs.mean().item():.4f}")
-                            print(f"  First 5 values of first element: {outs[0, 0, :5].tolist()}")
+                            
+                            # [FIX] Don't calculate mean() if it's an Integer (Token ID)
+                            if outs.dtype in [torch.int64, torch.int32, torch.long]:
+                                print(f"  [SUCCESS] Sending Generated Token ID: {outs.item()}")
+                            else:
+                                # It is floats/logits, so we can calculate stats
+                                print(f"  Output activation stats: min={outs.min().item():.4f}, max={outs.max().item():.4f}, mean={outs.mean().item():.4f}")
+                                print(f"  First 5 values of first element: {outs[0, 0, :5].tolist()}")
+                                
                             print(f"{'='*80}\n")
 
                         # Build msg (pass along tokens if present)

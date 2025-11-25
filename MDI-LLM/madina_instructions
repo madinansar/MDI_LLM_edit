@@ -51,4 +51,4 @@ python3.10 src/fastapi_gateway.py \
 --sequence-length 1024
 
 
-now my model is with finisher, but i renamed it node 3nodes/ 
+now my model is with finisher : 3nodes_finihser/ 
