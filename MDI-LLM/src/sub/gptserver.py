@@ -607,6 +607,14 @@ class GPTServer:
             the message - a Python dict with the fields "sample_index" and
             "data"
         """
+        # HYBRID SETUP FIX: Ensure all tensors are moved to CPU before transmission.
+        # This prevents "Device Mismatch" errors (e.g. sending MPS tensor to CUDA machine).
+        if isinstance(data, torch.Tensor):
+            data = data.cpu()
+        
+        if isinstance(tokens, torch.Tensor):
+            tokens = tokens.cpu()
+
         msg = {"sample_index": sample_index, "data": data, "stop": stop}
         if tokens is not None:
             msg["tokens"] = tokens
@@ -709,8 +717,14 @@ class GPTServer:
         if model_path:
             # NOTE: using accelerate to prevent memory usage spike at the beginning
             # resulting from the need to load both the "empty" model and the weights
+            if VERB:
+                print(f"[INFO] Loading checkpoint directly to {self.model_device}...")
+            
             self.model = accelerate.load_checkpoint_and_dispatch(
-                self.model, str(model_path), dtype=self.ptdtype
+                self.model, 
+                str(model_path), 
+                dtype=self.ptdtype,
+                device_map={"": self.model_device} # Optimization: Force load to target device
             )
         else:
             # NOTE: if here, cannot use accelerate! Weights are already in memory...
@@ -725,17 +739,20 @@ class GPTServer:
             self.model.max_seq_length = self.max_seq_length
         else:
             # Use default value
-            self.max_seq_length = self.model.max_seq_length
+            self.model.max_seq_length = self.model.max_seq_length # Fix: ensure attribute exists
 
-        if VERB:
-            print(f"Moving model to {self.torch_model_device}")
-        self.model = self.model.to(self.torch_model_device)
+        # Optimization: Model is already on device if loaded via accelerate with device_map
+        if not model_path:
+            if VERB:
+                print(f"Moving model to {self.torch_model_device}")
+            self.model = self.model.to(self.torch_model_device)
         
         # Enable embedding debug output for starter nodes
         if self.node_type == "starter" and VERB:
             self.model._debug_embeddings = True
 
         if self.compile and hasattr(torch, "compile"):
+            print("[WARNING] torch.compile is ENABLED. This will significantly slow down initialization.")
             if VERB:
                 print("Compiling local model - this may take a while", end="\r")
             try:

@@ -103,3 +103,12 @@ The secondary nodes have the wrong layer indices! They should continue from wher
 
 The only remaining suspect is RoPE (Rotary Positional Embeddings). Qwen3 uses a very high rope_base (1,000,000) compared to standard Llama (10,000). If this isn't handled correctly in the build_rope_cache function, it would completely scramble the attention mechanism, leading to:
 Huge activation values (attention scores blowing up)
+
+
+
+For 0.6B
+./src/secondary.py --chunk ./src/checkpoints/Qwen/Qwen3-0.6B/chunks/3nodes_finisher/model_secondary0.pth --nodes-config ./src/settings_distr/config_m3pro_3nodes.json 0 -v
+
+./src/secondary.py --chunk ./src/checkpoints/Qwen/Qwen3-0.6B/chunks/3nodes_finisher/model_secondary1.pth --nodes-config ./src/settings_distr/config_m3pro_3nodes.json 1 -v
+
+python3.10 src/fastapi_gateway.py --ckpt ./src/checkpoints/Qwen/Qwen3-0.6B --nodes-config ./src/settings_distr/config_m3pro_3nodes.json --sequence-length 1024
