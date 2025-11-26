@@ -57,10 +57,11 @@ app.add_middleware(
 
 # Configuration (can be overridden via environment variables)
 DEFAULT_CONFIG = {
-    "ckpt_dir": "./src/checkpoints/meta-llama/Llama-3.2-1B",
+    #"ckpt_dir": "./src/checkpoints/meta-llama/Llama-3.2-1B",
+    "ckpt_dir": "./src/checkpoints/Qwen/Qwen3-1.7B",
     "nodes_config": "./src/settings_distr/config_m3pro.json",
     "device": "cpu",  # Auto-detect
-    "dtype": "float16",
+    "dtype": "bfloat16",  # Qwen3's native dtype - bfloat16 works on CPU (just not with autocast)
     "sequence_length": 1024,
     "default_max_tokens": 100,
     "default_n_samples": 1,

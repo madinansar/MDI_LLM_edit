@@ -207,12 +207,13 @@ class GPTServer:
         self.ptdtype = DTYPE_TORCH_MAPPING[self.dtype]
         if not self.use_default_dtype:
             print(f"Overriding dtype to: {self.dtype}")
-        if self.dtype == "bfloat16" and (
-            not torch.cuda.is_available() or not torch.cuda.is_bf16_supported()
-        ):
-            raise ValueError(
-                "Specified bfloat16, but the host does not support this format"
-            )
+        # bfloat16 check: Only check CUDA support if using CUDA
+        if self.dtype == "bfloat16" and torch.cuda.is_available():
+            if not torch.cuda.is_bf16_supported():
+                raise ValueError(
+                    "Specified bfloat16, but CUDA does not support this format"
+                )
+        # bfloat16 works on CPU in modern PyTorch, no check needed
 
         self.node_type = node_type
         self.node_config = node_config
@@ -729,6 +730,10 @@ class GPTServer:
         if VERB:
             print(f"Moving model to {self.torch_model_device}")
         self.model = self.model.to(self.torch_model_device)
+        
+        # Enable embedding debug output for starter nodes
+        if self.node_type == "starter" and VERB:
+            self.model._debug_embeddings = True
 
         if self.compile and hasattr(torch, "compile"):
             if VERB:
@@ -864,11 +869,9 @@ class GPTServer:
             device_type = "mps"
         else:
             device_type = "cpu"
-        # CPU autocast only supports bfloat16, not float16
-        if device_type == "cpu" and self.ptdtype == torch.float16:
-            ctx = nullcontext()  # Disable autocast for CPU with float16
-        elif device_type == "mps":
-            ctx = nullcontext()  # MPS doesn't support autocast
+        # Disable autocast on CPU and MPS entirely to avoid warnings
+        if device_type in ["cpu", "mps"]:
+            ctx = nullcontext()  # Manual dtype management, no autocast
         else:
             ctx = torch.amp.autocast(device_type=device_type, dtype=self.ptdtype)
 
@@ -1081,6 +1084,10 @@ class GPTServer:
 
                             # Forward in local model (first piece)
                             idx_cond = self.model(idx_cond, self.input_pos[sample_id])
+                            
+                            # CRITICAL: Ensure output stays in model's dtype (float16)
+                            if idx_cond.dtype != self.ptdtype:
+                                idx_cond = idx_cond.to(dtype=self.ptdtype)
 
                             # DEBUG: Show data being sent from starter
                             if VERB:
@@ -1154,11 +1161,9 @@ class GPTServer:
             device_type = "mps"
         else:
             device_type = "cpu"
-        # CPU autocast only supports bfloat16, not float16
-        if device_type == "cpu" and self.ptdtype == torch.float16:
-            ctx = nullcontext()  # Disable autocast for CPU with float16
-        elif device_type == "mps":
-            ctx = nullcontext()  # MPS doesn't support autocast
+        # Disable autocast on CPU and MPS entirely to avoid warnings
+        if device_type in ["cpu", "mps"]:
+            ctx = nullcontext()  # Manual dtype management, no autocast
         else:
             ctx = torch.amp.autocast(device_type=device_type, dtype=self.ptdtype)
 
@@ -1198,7 +1203,8 @@ class GPTServer:
                         if iter >= self.n_samples:
                             first_glob_iter = False
 
-                        idx = in_msg["data"].to(self.torch_model_device)
+                        # CRITICAL FIX: Convert both device AND dtype to match model
+                        idx = in_msg["data"].to(device=self.torch_model_device, dtype=self.ptdtype)
                         
                         # DEBUG: Show what secondary node received
                         if VERB:
@@ -1243,13 +1249,17 @@ class GPTServer:
                         #madina
                         # Forward pass
                         outs = self.model(idx, input_pos=self.input_pos[sample_id])
+                        
+                        # CRITICAL: For non-finisher nodes, ensure output stays in model's dtype (float16)
+                        if not isinstance(self.model, FinisherNode) and outs.dtype != self.ptdtype:
+                            outs = outs.to(dtype=self.ptdtype)
 
                         # [NEW CODE] If this is the Finisher, generate the token here!
                         # CORRECT - This checks the class type we assigned in _init_model
                         if isinstance(self.model, FinisherNode):
                              # 'outs' is currently logits [1, 1, vocab_size]
                              # We sample from it right here to get the token ID [1, 1]
-                             outs = sample(outs, temperature=self.temperature, top_k=self.top_k)
+                             outs = sample(outs, temperature=self.temperature, top_k=self.top_k, vocab_size=self.model_config.vocab_size)
                              
                              # [LOGGING REQUEST] Log the exact generation time
                              import datetime

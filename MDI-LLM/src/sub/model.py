@@ -69,10 +69,14 @@ def sample(
     temperature: float = 1.0,
     top_k: Optional[int] = None,
     top_p: float = 1.0,
+    vocab_size: Optional[int] = None,
 ) -> torch.Tensor:
     if top_p < 0.0 or top_p > 1.0:
         raise ValueError(f"top_p must be in [0, 1], got {top_p}")
     logits = logits[0, -1]
+    # Mask out padded tokens (vocab_size to padded_vocab_size)
+    if vocab_size is not None and logits.size(-1) > vocab_size:
+        logits[vocab_size:] = float("-inf")
     # optionally crop the logits to only the top k options
     if top_k is not None:
         v, i = torch.topk(logits, min(top_k, logits.size(-1)))
@@ -146,6 +150,7 @@ class Config:
     rope_base: int = 10000
     n_expert: int = 0
     n_expert_per_token: int = 0
+    use_qk_norm: bool = False
 
     def __post_init__(self):
         if not self.name:
@@ -283,6 +288,7 @@ class Config:
             "rope_base": self.rope_base,
             "n_expert": self.n_expert,
             "n_expert_per_token": self.n_expert_per_token,
+            "use_qk_norm": self.use_qk_norm,
         }
 
 
@@ -413,6 +419,16 @@ class GPT(nn.Module):
 
         # Actual forward pass
         x = self.transformer.wte(idx)  # Get token embeddings of shape (B, T, n_embd)
+        
+        # DEBUG: Check embeddings immediately after lookup
+        if hasattr(self, '_debug_embeddings') and self._debug_embeddings:
+            print(f"\n[EMBEDDING DEBUG] After wte lookup:")
+            print(f"  Input token IDs: {idx.squeeze().tolist()}")
+            print(f"  Embedding output shape: {x.shape}")
+            print(f"  Embedding output dtype: {x.dtype}")
+            print(f"  Embedding stats: min={x.min().item():.4f}, max={x.max().item():.4f}, mean={x.mean().item():.6f}")
+            print(f"  First 5 values: {x[0, 0, :5].tolist()}\n")
+        
         if self.config.scale_embeddings:
             x = x * (self.config.n_embd**0.5)
 
@@ -466,7 +482,7 @@ class GPT(nn.Module):
 
     def next_token(self, x, input_pos, **kwargs):
         logits = self(x, input_pos)
-        next = sample(logits, **kwargs)
+        next = sample(logits, vocab_size=self.config.vocab_size, **kwargs)
         token = next.to(dtype=x.dtype)
         return token.view(1, -1)
 
@@ -663,6 +679,11 @@ class CausalSelfAttention(nn.Module):
         self.proj = nn.Linear(
             config.head_size * config.n_head, config.n_embd, bias=config.bias
         )
+        
+        if config.use_qk_norm:
+            self.q_norm = config.norm_class(config.head_size, eps=config.norm_eps)
+            self.k_norm = config.norm_class(config.head_size, eps=config.norm_eps)
+
         # Disabled by default
         self.kv_cache: Optional[KVCache] = None
 
@@ -729,6 +750,15 @@ class CausalSelfAttention(nn.Module):
         q = q.reshape(B, -1, T, self.config.head_size)  # (B, nh_q, T, hs)
         k = k.reshape(B, -1, T, self.config.head_size)  # (B, nh_k, T, hs)
         v = v.reshape(B, -1, T, self.config.head_size)  # (B, nh_v, T, hs)
+
+        if self.config.use_qk_norm:
+            # DEBUG: Check weights
+            if hasattr(self, 'q_norm') and hasattr(self.q_norm, 'weight'):
+                w = self.q_norm.weight
+                print(f"[DEBUG] q_norm weight stats: min={w.min().item():.4f}, max={w.max().item():.4f}, mean={w.mean().item():.4f}")
+            
+            q = self.q_norm(q)
+            k = self.k_norm(k)
 
         # RoPE
         q_roped = apply_rope(q[..., : self.config.rope_n_elem], cos, sin)
@@ -880,6 +910,12 @@ def build_rope_cache(
     https://github.com/labmlai/annotated_deep_learning_paper_implementations/blob/master/license.
     """
     # $\Theta = {\theta_i = 10000^{\frac{2(i-1)}{d}}, i \in [1, 2, ..., \frac{d}{2}]}$
+    
+    # Ensure base is a float to avoid integer arithmetic issues with large bases
+    base = float(base)
+    if base > 10000:
+        print(f"[DEBUG] build_rope_cache called with base={base}")
+
     theta = 1.0 / (base ** (torch.arange(0, n_elem, 2, device=device).float() / n_elem))
 
     # Create position indexes `[0, 1, ..., seq_len - 1]`

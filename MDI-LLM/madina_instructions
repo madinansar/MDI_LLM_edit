@@ -52,3 +52,54 @@ python3.10 src/fastapi_gateway.py \
 
 
 now my model is with finisher : 3nodes_finihser/ 
+
+
+
+
+25.11.25 changing model to Qwen 
+
+python3.10 ./src/prepare_model.py Qwen/Qwen3-1.7B --n-nodes 3 --hf-token "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"
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/3nodes_finisher/model_secondary0.pth \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json 0 \
+--dtype bfloat16 \
+-v
+
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/3nodes_finisher/model_secondary1.pth \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json 1 \
+--dtype bfloat16 \
+-v
+
+
+python3.10 src/fastapi_gateway.py \
+--host 0.0.0.0 \
+--port 8000 \
+--ckpt ./src/checkpoints/Qwen/Qwen3-1.7B \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
+--sequence-length 1024
+
+
+Summary of what we did:
+Added Qwen3-1.7B configuration to config.py with proper parameters (28 layers, vocab_size=151936, padding_multiple=512, etc.)
+
+Added support for Qwen3's k_norm and q_norm layers in the weight mapping (set them to None to skip)
+
+Fixed the embedding padding issue by:
+
+Adding padding logic to pad embeddings from 151936 to 152064 (padded_vocab_size)
+Handling the SavingProxyForTensor objects properly by recursively unwrapping them
+Moving the padding logic to the end of conversion, after all weights are processed
+Model successfully downloaded and split into 3 nodes with finisher pattern
+
+
+Starter: Has layers 0-7 (8 layers) ✓
+Secondary0: Has layers 0-9 (10 layers) but should be layers 8-17 ❌
+Secondary1: Has layers 0-9 (10 layers) but should be layers 18-27 ❌
+The secondary nodes have the wrong layer indices! They should continue from where the previous node left off, not restart at 0. Let me check the splitting code:
+
+
+The only remaining suspect is RoPE (Rotary Positional Embeddings). Qwen3 uses a very high rope_base (1,000,000) compared to standard Llama (10,000). If this isn't handled correctly in the build_rope_cache function, it would completely scramble the attention mechanism, leading to:
+Huge activation values (attention scores blowing up)

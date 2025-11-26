@@ -14,7 +14,9 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from sub.utils import load_from_pt, split_and_store_with_finisher
 
 # Configuration
-MODEL_PATH = Path("./src/checkpoints/meta-llama/Llama-3.2-1B")
+# MODEL_PATH = Path("./src/checkpoints/meta-llama/Llama-3.2-1B")
+MODEL_PATH = Path("./src/checkpoints/Qwen/Qwen3-1.7B")
+
 N_NODES = 3
 DEVICE = "cpu"  # Use CPU for splitting to save memory
 

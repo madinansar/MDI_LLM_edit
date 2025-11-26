@@ -125,6 +125,8 @@ def copy_weights_hf_llama(
         "model.layers.{}.self_attn.q_proj.weight": None,
         "model.layers.{}.self_attn.k_proj.weight": None,
         "model.layers.{}.self_attn.v_proj.weight": None,
+        "model.layers.{}.self_attn.q_norm.weight": "transformer.h.{l}.attn.q_norm.weight",  # Qwen3 specific 
+        "model.layers.{}.self_attn.k_norm.weight": "transformer.h.{l}.attn.k_norm.weight",  # Qwen3 specific 
         "model.layers.{}.self_attn.o_proj.weight": "transformer.h.{l}.attn.proj.weight",
         "model.layers.{}.self_attn.rotary_emb.inv_freq": None,
         "model.layers.{}.post_attention_layernorm.weight": "transformer.h.{l}.norm_2.weight",
@@ -173,6 +175,17 @@ def copy_weights_hf_llama(
         else:
             to_name = weight_map[name]
         param = load_param(param, name, dtype)
+        
+        # Special handling for embedding padding (Qwen3, etc.)
+        # Must pad BEFORE saver.store_early() wraps it in a proxy
+        # Pad both wte (input embeddings) and lm_head (output embeddings)
+        if to_name in ("transformer.wte.weight", "lm_head.weight") and config.padded_vocab_size > config.vocab_size:
+            if param.shape[0] == config.vocab_size:
+                print(f"Padding {to_name} from {config.vocab_size} to {config.padded_vocab_size}")
+                pad_size = config.padded_vocab_size - config.vocab_size
+                padding = torch.zeros(pad_size, param.shape[1], dtype=param.dtype, device=param.device)
+                param = torch.cat([param, padding], dim=0)
+        
         if saver is not None:
             param = saver.store_early(param)
         state_dict[to_name] = param
