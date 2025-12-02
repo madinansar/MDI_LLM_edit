@@ -160,8 +160,18 @@ class StarterNode(NodePrototype):
 
     def load_weights(self, params: Dict[str, Any], **kwargs) -> int:
         """Load sub-model weights"""
-        # self.load_state_dict(params, **kwargs)
-        init_from_state_dict(self, params)
+        # Check if model is on meta device
+        try:
+            is_meta = next(self.parameters()).device == torch.device("meta")
+        except StopIteration:
+            is_meta = False
+        
+        if is_meta:
+            init_from_state_dict(self, params)
+        else:
+            # Model already has memory allocated, use load_state_dict
+            self.load_state_dict(params, strict=False, **kwargs)
+        
         self.params_init = True
         if self.verb:
             print(f"Weights loaded!")

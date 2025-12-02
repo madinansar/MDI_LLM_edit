@@ -228,6 +228,75 @@ class Config:
         file_kwargs.update(kwargs)
         return cls(**file_kwargs)
 
+    @classmethod
+    def from_hf_config(cls, hf_config: Dict[str, Any], model_name: str = "", **kwargs: Any) -> Self:
+        """
+        Create a Config from a Huggingface config.json dictionary.
+        
+        Args:
+            hf_config: dictionary loaded from HF config.json
+            model_name: optional model name for config lookup
+            **kwargs: additional overrides
+            
+        Returns:
+            Config object
+        """
+        # Try to find a matching config in our configs list first
+        hf_model_type = hf_config.get("model_type", "").lower()
+        architectures = hf_config.get("architectures", [])
+        
+        # Map HF model types to our config names
+        config_kwargs = {}
+        
+        # Extract common parameters from HF config
+        config_kwargs["vocab_size"] = hf_config.get("vocab_size", 50254)
+        config_kwargs["n_layer"] = hf_config.get("num_hidden_layers", 16)
+        config_kwargs["n_head"] = hf_config.get("num_attention_heads", 32)
+        config_kwargs["n_embd"] = hf_config.get("hidden_size", 4096)
+        config_kwargs["block_size"] = hf_config.get("max_position_embeddings", 4096)
+        config_kwargs["intermediate_size"] = hf_config.get("intermediate_size")
+        config_kwargs["n_query_groups"] = hf_config.get("num_key_value_heads", config_kwargs["n_head"])
+        config_kwargs["rope_base"] = hf_config.get("rope_theta", 10000)
+        config_kwargs["norm_eps"] = hf_config.get("rms_norm_eps", hf_config.get("layer_norm_eps", 1e-5))
+        
+        # Determine model architecture
+        if hf_model_type in ("llama", "qwen2", "qwen3", "mistral"):
+            config_kwargs["mlp_class_name"] = "LLaMAMLP"
+            config_kwargs["norm_class_name"] = "RMSNorm"
+            config_kwargs["rotary_percentage"] = 1.0
+            config_kwargs["parallel_residual"] = False
+            config_kwargs["bias"] = False
+            config_kwargs["lm_head_bias"] = False
+            
+            # Qwen3 specific
+            if hf_model_type == "qwen3":
+                config_kwargs["use_qk_norm"] = True
+                config_kwargs["padding_multiple"] = 512
+        elif hf_model_type == "gemma":
+            config_kwargs["mlp_class_name"] = "GemmaMLP"
+            config_kwargs["norm_class_name"] = "RMSNorm"
+            config_kwargs["rotary_percentage"] = 1.0
+            config_kwargs["parallel_residual"] = False
+            config_kwargs["bias"] = False
+        elif hf_model_type == "falcon":
+            config_kwargs["mlp_class_name"] = "GptNeoxMLP"
+            config_kwargs["norm_class_name"] = "LayerNorm"
+        elif hf_model_type == "phi":
+            config_kwargs["mlp_class_name"] = "GptNeoxMLP"
+        else:
+            # Default to LLaMAMLP for unknown types
+            config_kwargs["mlp_class_name"] = "LLaMAMLP"
+            config_kwargs["norm_class_name"] = "RMSNorm"
+        
+        # Set name
+        config_kwargs["name"] = model_name or hf_config.get("_name_or_path", "unknown")
+        config_kwargs["hf_config"] = {"name": config_kwargs["name"]}
+        
+        # Override with any provided kwargs
+        config_kwargs.update(kwargs)
+        
+        return cls(**config_kwargs)
+
     # FIXME: make it compliant
     @classmethod
     def from_checkpoint(cls, path: Path, **kwargs: Any) -> Self:

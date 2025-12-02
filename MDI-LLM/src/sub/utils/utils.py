@@ -771,6 +771,7 @@ def load_from_hf(
     model_name: Optional[str] = None,
     device: Optional[str] = "cpu",
     config_only: Optional[bool] = False,
+    convert_checkpoint: Optional[bool] = True,
 ) -> Tuple[Config, Optional[Dict[str, Any]]]:
     """
     Load model weights from Huggingface.
@@ -787,6 +788,7 @@ def load_from_hf(
         device: device where to load state dict
         config_only (default: False): if true, only return the Config object (note that
             the model will be downloaded anyways)
+        convert_checkpoint (default: True): if False, skip HF to LitGPT conversion
 
     Returns:
         model config (Config object)
@@ -800,10 +802,124 @@ def load_from_hf(
         dtype=dtype,
         checkpoint_dir=checkpoint_dir,
         model_name=model_name,
+        convert_checkpoint=convert_checkpoint,
     )
 
     model_path = checkpoint_dir / repo_id
     return load_from_pt(model_path, device, config_only=config_only)
+
+
+def load_from_hf_direct(
+    model_path: Union[Path, str],
+    device: Optional[Union[torch.device, str]] = "cpu",
+    dtype: Optional[torch.dtype] = None,
+    config_only: Optional[bool] = False,
+) -> Tuple[Config, Optional[Dict[str, Any]]]:
+    """
+    Load model weights directly from HF format (safetensors/bin) without converting to LitGPT format on disk.
+    The conversion happens in memory only.
+
+    Args:
+        model_path: path to the HF checkpoint directory
+        device (default: "cpu"): device where to load state dict
+        dtype: optional dtype to convert weights to
+        config_only (default: False): if True, only return the Config object
+
+    Returns:
+        model config (Config object)
+        [model state dictionary, compatible with GPT class]
+    """
+    import json
+    import gc
+    from functools import partial
+    from .convert_hf_checkpoint import copy_weights_hf_llama, copy_weights_gpt_neox, copy_weights_falcon, copy_weights_phi
+    
+    if isinstance(model_path, str):
+        model_dir = Path(model_path)
+    elif isinstance(model_path, Path):
+        model_dir = model_path
+    else:
+        raise TypeError(f"model_path must be str or Path, got {type(model_path)}")
+
+    if not model_dir.is_dir():
+        raise NotADirectoryError(f"Unable to find model checkpoint at {model_dir}")
+
+    # Load config from HF config.json
+    hf_config_path = model_dir / "config.json"
+    if not hf_config_path.exists():
+        raise FileNotFoundError(f"HF config.json not found at {hf_config_path}")
+    
+    with open(hf_config_path, "r", encoding="utf-8") as f:
+        hf_config = json.load(f)
+    
+    # Try to get the model name from config or directory structure
+    model_name = hf_config.get("_name_or_path", "") or hf_config.get("model_type", "")
+    if not model_name:
+        # Try to infer from directory name
+        model_name = model_dir.name.lower()
+    
+    # Create Config from HF config
+    config = Config.from_hf_config(hf_config, model_name=model_name)
+    
+    # Save the config for future use (so load_from_pt can work)
+    save_config(config, model_dir)
+    
+    if config_only:
+        return config, None
+    
+    # Determine copy function based on model architecture
+    if config.mlp_class_name in ("LLaMAMLP", "GemmaMLP", "LLaMAMoE"):
+        qkv_weights = {}
+        copy_fn = partial(copy_weights_hf_llama, config, qkv_weights)
+    elif "falcon" in model_name.lower():
+        copy_fn = partial(copy_weights_falcon, model_name)
+    elif "phi" in model_name.lower():
+        qkv_weights = {}
+        copy_fn = partial(copy_weights_phi, config, qkv_weights)
+    else:
+        copy_fn = copy_weights_gpt_neox
+    
+    # Find weight files
+    safetensor_files = list(model_dir.glob("*.safetensors"))
+    bin_files = list(model_dir.glob("*.bin"))
+    # Filter out training_args.bin
+    bin_files = [f for f in bin_files if f.name != "training_args.bin"]
+    
+    sd = {}
+    
+    if safetensor_files:
+        # Load from safetensors directly
+        try:
+            from safetensors.torch import load_file as safetensors_load
+        except ImportError:
+            raise ImportError("safetensors package is required to load .safetensors files")
+        
+        for sf_file in sorted(safetensor_files):
+            print(f"Loading {sf_file}")
+            hf_weights = safetensors_load(sf_file, device=str(device))
+            copy_fn(sd, hf_weights, saver=None, dtype=dtype)
+            del hf_weights
+            gc.collect()
+    elif bin_files:
+        # Load from bin files
+        for bin_file in sorted(bin_files):
+            print(f"Loading {bin_file}")
+            hf_weights = torch.load(bin_file, map_location=device)
+            copy_fn(sd, hf_weights, saver=None, dtype=dtype)
+            del hf_weights
+            gc.collect()
+    else:
+        raise ValueError(f"No weight files (.safetensors or .bin) found in {model_dir}")
+    
+    # Move state dict to device if needed
+    if device != "cpu":
+        for key in sd:
+            if isinstance(sd[key], torch.Tensor):
+                sd[key] = sd[key].to(device)
+    
+    gc.collect()
+    
+    return config, sd
 
 
 def save_config(config: "Config", checkpoint_dir: Path) -> None:

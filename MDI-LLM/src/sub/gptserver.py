@@ -217,16 +217,22 @@ class GPTServer:
 
         self.node_type = node_type
         self.node_config = node_config
+        
+        # Get model_weights from kwargs if provided (for HF direct loading)
+        model_weights = kwargs.pop("model_weights", None)
 
         if "starter" in node_type:
-            assert chunk_path is not None, "Missing path to the model chunk"
+            assert chunk_path is not None or model_weights is not None, "Missing path to the model chunk or model weights"
             assert model_config is not None, "Missing model Config"
             assert tokenizer_dir is not None, "Missing tokenizer directory"
             
-            if isinstance(chunk_path, str):
-                self.model_path = Path(chunk_path)
+            if chunk_path is not None:
+                if isinstance(chunk_path, str):
+                    self.model_path = Path(chunk_path)
+                else:
+                    self.model_path = chunk_path
             else:
-                self.model_path = chunk_path
+                self.model_path = None
 
             if isinstance(tokenizer_dir, str):
                 self.tokenizer_dir = Path(tokenizer_dir)
@@ -278,6 +284,7 @@ class GPTServer:
             self._init_model(
                 self.n_layers_local,
                 model_path=self.model_path,
+                model_parameters=model_weights,  # Pass weights for HF direct loading
             )
 
             # Initialize tokenizer
@@ -1023,40 +1030,39 @@ class GPTServer:
                             # We are not in the first iteration for this sample
                             # --> Can start processing messages from last secondary node
                             
-                            # # [THE FIX]
-                            # # 'idx' is already the final logits from secondary 1.
-                            # # Do not re-process it.
-                            # logits = idx
+                            # DEBUG: Check n_nodes before branching
+                            print(f"[DEBUG BRANCH] n_nodes = {self.n_nodes}, checking if n_nodes == 1: {self.n_nodes == 1}")
                             
-                            # # DEBUG: Show logits and sampling
-                            # if VERB:
-                            #     print(f"[STARTER SAMPLING] Sample {sample_id}")
-                            #     print(f"  Logits shape: {logits.shape}")
-                            #     print(f"  Logits stats: min={logits.min().item():.4f}, max={logits.max().item():.4f}, mean={logits.mean().item():.4f}")
-                            #     print(f"  Top 5 logits: {logits[0, -1, :].topk(5).values.tolist()}")
-                            #     print(f"  Top 5 indices: {logits[0, -1, :].topk(5).indices.tolist()}")
-                            
-                            # idx_next = sample(
-                            #     logits,
-                            #     temperature=self.temperature,
-                            #     top_k=self.top_k,
-                            # )
-                            # idx_next = idx_next.view(1, -1)
-                            
-                            # # DEBUG: Show sampled token
-                            # if VERB and hasattr(self, 'tok') and self.tok is not None:
-                            #     sampled_token = self.tok.decode(idx_next.squeeze())
-                            #     print(f"  Sampled token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
-                            
-                            # [NEW ARCHITECTURE]
-                            # 'idx' is now the finished TOKEN ID received from secondary 1.
-                            # We do not need to sample anymore. We just resize it.
-                            idx_next = idx.view(1, -1)
-                            
-                            # DEBUG: Show the token we received
-                            if VERB and hasattr(self, 'tok') and self.tok is not None:
-                                sampled_token = self.tok.decode(idx_next.squeeze())
-                                print(f"  Received Token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
+                            if self.n_nodes == 1:
+                                # STANDALONE MODE: idx is activations, need to compute logits and sample
+                                print(f"[DEBUG] Entering STANDALONE branch - computing logits from activations")
+                                logits = self.model(idx, first_pass=False)
+                                
+                                # DEBUG: Show logits and sampling
+                                if VERB:
+                                    print(f"[STANDALONE SAMPLING] Sample {sample_id}")
+                                    print(f"  Logits shape: {logits.shape}")
+                                    print(f"  Logits stats: min={logits.min().item():.4f}, max={logits.max().item():.4f}")
+                                
+                                idx_next = sample(
+                                    logits,
+                                    temperature=self.temperature,
+                                    top_k=self.top_k,
+                                )
+                                idx_next = idx_next.view(1, -1)
+                                
+                                # DEBUG: Show sampled token
+                                if VERB and hasattr(self, 'tok') and self.tok is not None:
+                                    sampled_token = self.tok.decode(idx_next.squeeze())
+                                    print(f"  Sampled token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
+                            else:
+                                # DISTRIBUTED MODE: idx is already the token ID from finisher node
+                                idx_next = idx.view(1, -1)
+                                
+                                # DEBUG: Show the token we received
+                                if VERB and hasattr(self, 'tok') and self.tok is not None:
+                                    sampled_token = self.tok.decode(idx_next.squeeze())
+                                    print(f"  Received Token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
 
                             self.samples[sample_id] = torch.cat(
                                 (self.samples[sample_id], idx_next), dim=1

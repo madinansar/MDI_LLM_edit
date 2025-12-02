@@ -36,7 +36,7 @@ from sub import PromptStyle
 from sub.config import N_LAYERS_NODES
 from sub.gptserver import GPTServer
 from sub.typing import FileType
-from sub.utils import load_from_pt, split_and_store_with_finisher
+from sub.utils import load_from_pt, load_from_hf_direct, split_and_store_with_finisher
 
 docstring = """
 Distributed implementation of the Llama architecture using Model-Distributed Inference
@@ -236,11 +236,20 @@ class GPTDistributed:
                 node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes_finisher"
                 self.model_was_split = node_chunks_dir.is_dir()
 
+            # Check if we have lit_model.pth (converted) or only HF format
+            has_lit_model = (self.ckpt_dir / "lit_model.pth").exists()
+            
             if not self.model_was_split and self.n_nodes > 1:
                 # Load model, split it, store it; the chunks will then be transmitted
                 if VERB:
                     print("Chunks not found! Splitting the model")
-                self.model_config, full_model = load_from_pt(self.ckpt_dir)
+                if has_lit_model:
+                    self.model_config, full_model = load_from_pt(self.ckpt_dir)
+                else:
+                    # Load directly from HF format
+                    if VERB:
+                        print("Loading from HF format directly (no lit_model.pth found)")
+                    self.model_config, full_model = load_from_hf_direct(self.ckpt_dir)
                 assert full_model is not None
                 #split and store madina
                 node_chunks_dir = split_and_store_with_finisher(
@@ -248,7 +257,11 @@ class GPTDistributed:
                 )
             else:
                 # Here if either model was already split or running in standalone mode
-                self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
+                if has_lit_model:
+                    self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
+                else:
+                    # Load config from HF format
+                    self.model_config, _ = load_from_hf_direct(self.ckpt_dir, config_only=True)
 
             self.model_seq_length = None
             if model_seq_length and model_seq_length > self.model_config.block_size:
@@ -260,11 +273,21 @@ class GPTDistributed:
             else:
                 self.model_seq_length = model_seq_length
 
+            # For standalone mode without lit_model.pth, we need to load weights to memory
+            model_weights = None
             if not self.chunk_path:
                 if self.n_nodes > 1:
                     self.chunk_path = node_chunks_dir / "model_starter.pth"
                 else:
-                    self.chunk_path = self.ckpt_dir / "lit_model.pth"
+                    # Standalone mode
+                    if has_lit_model:
+                        self.chunk_path = self.ckpt_dir / "lit_model.pth"
+                    else:
+                        # Load weights from HF format directly to memory
+                        if VERB:
+                            print("Loading model weights from HF format for standalone mode...")
+                        _, model_weights = load_from_hf_direct(self.ckpt_dir)
+                        self.chunk_path = None  # Will pass weights directly
 
             if (not self.chunk_path or not self.model_was_split) and self.n_nodes > 1:
                 self.chunk_path = node_chunks_dir / "model_starter.pth"
@@ -274,6 +297,7 @@ class GPTDistributed:
                 node_type=self.node_type,
                 model_config=self.model_config,
                 chunk_path=self.chunk_path,
+                model_weights=model_weights,  # Pass weights for HF format standalone
                 tokenizer_dir=self.ckpt_dir,
                 model_device=self.torch_device,
                 dtype=dtype,
@@ -315,7 +339,7 @@ class GPTDistributed:
 
             # NOTE: ckpt path may not be present
             if self.ckpt_dir and self.n_nodes and self.chunk_path is None:
-                node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes"
+                node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes_finisher"
                 self.chunk_path = (
                     node_chunks_dir / f"model_secondary{self.secondary_index}.pth"
                 )
@@ -325,7 +349,12 @@ class GPTDistributed:
                 )
 
             if self.ckpt_dir:
-                self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
+                # Try HF format first, fall back to LitGPT format
+                has_hf_config = (self.ckpt_dir / "config.json").exists()
+                if has_hf_config:
+                    self.model_config, _ = load_from_hf_direct(self.ckpt_dir, config_only=True)
+                else:
+                    self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
             else:
                 self.model_config = None
 
@@ -420,8 +449,6 @@ class GPTDistributed:
             0 if at least 1 node fails
         """
         assert self.n_nodes is not None
-        assert self.chunk_path is not None
-        node_chunks_dir = self.chunk_path.parent
         if self.node_type != "starter":
             raise ValueError("This method can only be called on starter nodes!")
         if not self.model_config:
@@ -437,6 +464,10 @@ class GPTDistributed:
         else:
             warnings.warn("No secondary nodes found! Running standalone")
             return out
+
+        # For distributed mode, we need chunk_path
+        assert self.chunk_path is not None, "chunk_path is required for distributed mode"
+        node_chunks_dir = self.chunk_path.parent
 
         # Secondary nodes config
         for i, sec_node in enumerate(self.node_config["nodes"]["secondary"]):

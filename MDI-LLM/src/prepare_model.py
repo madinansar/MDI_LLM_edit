@@ -4,8 +4,9 @@ import os
 from argparse import ArgumentParser, RawTextHelpFormatter
 from pathlib import Path
 
-from sub.utils import load_from_hf, load_from_pt, split_and_store_with_finisher
+from sub.utils import load_from_hf, load_from_hf_direct, load_from_pt, split_and_store_with_finisher
 from sub.utils.convert_hf_checkpoint import convert_hf_checkpoint
+from sub.utils.download import download_from_hub
 
 docstring = """
 Use this script to:
@@ -25,6 +26,8 @@ and the chunks will be stored in:
 
 where `N` is the number of nodes for the partition contained in that subfolder.
 
+Use --skip-convert to skip the HF to LitGPT conversion and keep the model in HF format.
+
 ---
 """
 
@@ -35,27 +38,49 @@ def main(args):
     os.makedirs(args.ckpt_folder, exist_ok=True)
 
     if Path(args.MODEL).is_dir():
-        if not (Path(args.MODEL) / "lit_model.pth").exists() or not (
-            Path(args.MODEL) / "model_config.yaml"
-        ).exists():
-            # Need to convert the model to the Lit format
-            # if the bin files have been deleted, it will raise ValueError
-            convert_hf_checkpoint(checkpoint_dir=Path(args.MODEL), dtype=args.dtype)
-
-        _, state_dict = load_from_pt(args.MODEL, args.device)
+        # Local model directory
         model_path = Path(args.MODEL)
+        if args.skip_convert:
+            # Load directly from HF format
+            _, state_dict = load_from_hf_direct(model_path, args.device)
+        else:
+            if not (model_path / "lit_model.pth").exists() or not (
+                model_path / "model_config.yaml"
+            ).exists():
+                # Need to convert the model to the Lit format
+                convert_hf_checkpoint(checkpoint_dir=model_path, dtype=args.dtype)
+            _, state_dict = load_from_pt(model_path, args.device)
     else:
-        _, state_dict = load_from_hf(
-            repo_id=args.MODEL,
-            access_token=(
-                args.hf_token if args.hf_token is not None else os.getenv("HF_TOKEN")
-            ),
-            dtype=args.dtype,
-            checkpoint_dir=args.ckpt_folder,
-            model_name=args.model_name,
-            device=args.device,
-        )
+        # Download from Huggingface
         model_path = Path(args.ckpt_folder) / args.MODEL
+        
+        if args.skip_convert:
+            # Download without conversion
+            download_from_hub(
+                repo_id=args.MODEL,
+                access_token=(
+                    args.hf_token if args.hf_token is not None else os.getenv("HF_TOKEN")
+                ),
+                dtype=args.dtype,
+                checkpoint_dir=args.ckpt_folder,
+                model_name=args.model_name,
+                convert_checkpoint=False,  # Don't convert
+            )
+            # Load directly from HF format
+            _, state_dict = load_from_hf_direct(model_path, args.device)
+        else:
+            # Download and convert
+            _, state_dict = load_from_hf(
+                repo_id=args.MODEL,
+                access_token=(
+                    args.hf_token if args.hf_token is not None else os.getenv("HF_TOKEN")
+                ),
+                dtype=args.dtype,
+                checkpoint_dir=args.ckpt_folder,
+                model_name=args.model_name,
+                device=args.device,
+                convert_checkpoint=True,
+            )
 
     print("Model was loaded!")
 
@@ -116,6 +141,11 @@ if __name__ == "__main__":
         type=str,
         default="cpu",
         help="torch device where to load model and tensors (default: cpu)",
+    )
+    parser.add_argument(
+        "--skip-convert",
+        action="store_true",
+        help="skip HF to LitGPT conversion (keep original HF format)",
     )
 
     args = parser.parse_args()
