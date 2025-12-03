@@ -311,6 +311,20 @@ class NoPrompt(PromptStyle):
         return ([tokenizer.eos_id],)
 
 
+class Qwen(PromptStyle):
+    """
+    Prompt style for Qwen models.
+    Uses a simple instruction format that encourages direct, factual answers.
+    """
+    def apply(self, prompt: str, **kwargs: str) -> str:
+        # Simple format that encourages direct answers
+        return f"Answer directly and concisely.\n\nQuestion: {prompt}\n\nAnswer:"
+
+    def stop_tokens(self, tokenizer: "Tokenizer") -> Tuple[List[int], ...]:
+        # Just use the EOS token - keep it simple
+        return ([tokenizer.eos_id],)
+
+
 # Maps prompt style names to PromptStyle classes
 prompt_styles: Dict[str, Type[PromptStyle]] = {
     # Model-specific prompt styles
@@ -319,6 +333,7 @@ prompt_styles: Dict[str, Type[PromptStyle]] = {
     "codellama": CodeLlama,
     "tinyllama": TinyLlama,
     "llama3": Llama3,
+    "qwen": Qwen,
 }
 
 
@@ -363,6 +378,8 @@ def model_name_to_prompt_style(model_name: str) -> PromptStyle:
         return H2Oai()
     if re.search(r"nanollama*", model_name.lower()):
         return NoPrompt()
+    if re.search(r"[Qq]wen", model_name):
+        return Qwen()
     return Default()
 
 

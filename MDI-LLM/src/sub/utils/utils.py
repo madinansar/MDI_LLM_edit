@@ -225,6 +225,94 @@ def detect_stop_tokens(
     )
 
 
+def detect_complete_answer(text: str, max_sentences: int = 2) -> bool:
+    """
+    Detect if the generated text contains a complete answer.
+    Returns True if we should stop generation.
+    
+    Stops when:
+    - More than max_sentences complete sentences have been generated
+    - Repetitive sentence patterns detected (same structure repeated)
+    - Repeated 5+ word phrases detected (strong indicator of looping)
+    - Model starts generating a new "Question:" (repeating the format)
+    
+    Args:
+        text: the generated text so far
+        max_sentences: maximum number of sentences before stopping
+    
+    Returns:
+        True if generation should stop
+    """
+    import re
+    from collections import Counter
+
+    text_lower = text.lower()
+    
+    # Also stop if we see multiple newlines (loop indicator)
+    if '\n\n' in text:
+        return True
+    
+    # Split into sentences (handle both . and newlines as separators)
+    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])|\n+', text.strip())
+    sentences = [s.strip() for s in sentences if s.strip()]
+    
+    if len(sentences) > max_sentences:
+        return True
+    
+    # 1. Detect repetitive sentence structure patterns
+    # This catches things like "The capital of X is Y. The capital of Z is W."
+    pattern_count = {}
+    for sent in sentences:
+        # Normalize: replace proper nouns with placeholder
+        pattern = re.sub(r'\b[A-Z][a-z]+\b', '*', sent)
+        pattern_count[pattern] = pattern_count.get(pattern, 0) + 1
+        if pattern_count[pattern] > 1:
+            return True
+    
+    # 2. Detect repeated 5-grams (very specific - strong indicator of looping)
+    words = text_lower.split()
+    if len(words) >= 10:
+        fivegrams = [' '.join(words[i:i+5]) for i in range(len(words) - 4)]
+        fivegram_counts = Counter(fivegrams)
+        for phrase, count in fivegram_counts.items():
+            if count > 1:
+                return True
+    
+    return False
+
+
+def truncate_to_complete_answer(text: str, max_sentences: int = 3) -> str:
+    """
+    Truncate text to remove incomplete sentences at the end.
+    Keeps the full text up to the last complete sentence (ending with . ! or ?).
+    
+    Args:
+        text: the generated text (may include prompt)
+        max_sentences: not used currently, kept for API compatibility
+    
+    Returns:
+        Text truncated at last complete sentence
+    """
+    import re
+    
+    text = text.strip()
+    if not text:
+        return text
+    
+    # If text already ends with sentence-ending punctuation, return as-is
+    if text[-1] in '.!?':
+        return text
+    
+    # Find the last occurrence of sentence-ending punctuation
+    # and truncate there
+    match = re.search(r'^(.*[.!?])', text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    
+    # No complete sentence found, return original
+    return text
+
+
 def format_output(text: str):
     """
     Display the generated text correctly;

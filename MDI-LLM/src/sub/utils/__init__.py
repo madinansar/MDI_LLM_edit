@@ -6,9 +6,11 @@ from .data_loader import get_batch, load_dataset, split_dataset
 from .download import download_from_hub
 from .plots import plot_tokens_per_time
 from .utils import (count_transformer_blocks, deserialize_params,
-                    detect_stop_tokens, estimate_loss, find_eot, get_lr,
-                    get_obj_size, load_from_hf, load_from_hf_direct, load_from_pt, load_sd,
-                    loading_bar, remove_prefix, serialize_params,
+                    detect_complete_answer, detect_stop_tokens, estimate_loss,
+                    find_eot, get_lr, get_obj_size, load_from_hf,
+                    load_from_hf_direct, load_from_pt, load_sd, loading_bar,
+                    remove_prefix, serialize_params,
+                    truncate_to_complete_answer,
                     # split_and_store, split_parameters,
                      split_and_store_with_finisher, split_parameters_with_finisher, waiting_animation, init_from_state_dict)
 from .context_managers import catch_loop_errors
@@ -38,6 +40,8 @@ __all__ = [
     "split_and_store_with_finisher",
     "functional",
     "detect_stop_tokens",
+    "detect_complete_answer",
+    "truncate_to_complete_answer",
     "waiting_animation",
     "catch_loop_errors",
     "init_from_state_dict",

@@ -46,9 +46,12 @@ from sub.prompts import (PromptStyle, get_user_prompt, has_prompt_style,
 from sub.tokenizer import Tokenizer
 from sub.typing import FileType
 from sub.utils import (catch_loop_errors, count_transformer_blocks,
-                       detect_stop_tokens, find_eot, load_sd,
-                       plot_tokens_per_time, waiting_animation)
+                       detect_complete_answer, detect_stop_tokens, find_eot,
+                       load_sd, plot_tokens_per_time, truncate_to_complete_answer,
+                       waiting_animation)
 from sub.submodels import SecondaryNode, StarterNode, FinisherNode #madina
+import nltk
+nltk.download('stopwords')
 
 # -------------------------------------------------------------------------------------
 
@@ -811,7 +814,9 @@ class GPTServer:
             print(f"Prompt style: {type(self.prompt_style)}")
 
         self.stop_tokens = self.prompt_style.stop_tokens(self.tok)
+            
         if VERB:
+            print(f"Stop tokens: {self.stop_tokens}")
             print("Tokenizer and prompt style have been loaded!")
 
     def _init_sample_caches(self, id, idx):
@@ -1071,6 +1076,20 @@ class GPTServer:
                             stopping_detected = detect_stop_tokens(
                                 self.samples[sample_id], self.stop_tokens
                             )
+                            
+                            # Also check for complete answer (sentence limit / repetition)
+                            if not stopping_detected and hasattr(self, 'tok'):
+                                generated_text = self.tok.decode(
+                                    self.samples[sample_id][:, self.prompt_lengths[sample_id]:]
+                                )
+                                if detect_complete_answer(generated_text, max_sentences=100):
+                                    stopping_detected = True
+                                    # if VERB:
+                                    #     print(f"[STOP DETECTED] Sample {sample_id} - Complete answer detected")
+                            
+                            if stopping_detected:
+                                print(f"[STOP DETECTED] Sample {sample_id} - EOT token found, stopping generation")
+                            
                             # Update input pos (will be used in next pass)
                             self.input_pos[sample_id] = self.input_pos[sample_id][
                                 -1:
@@ -1090,8 +1109,8 @@ class GPTServer:
                             # First iter for this sample, init KV cache!
                             self._init_sample_caches(sample_id, self.samples[sample_id])
 
-                        # Send to next iff not at the last token
-                        if self.iter_ind[sample_id] < self.max_new_tokens[sample_id]:
+                        # Send to next iff not at the last token AND no stop token detected
+                        if self.iter_ind[sample_id] < self.max_new_tokens[sample_id] and not stopping_detected:
                             # Only propagate last token (KV cache) - OR all initial prompt if
                             # 1st iter
                             idx_cond = (
@@ -1162,6 +1181,10 @@ class GPTServer:
                     f"- Sample {i} truncated to {len(smp.squeeze())}/{len(self.samples[i].squeeze())}"
                 )
         out_samples = [self.tok.decode(smp) for smp in out_truncated]
+        
+        # Truncate to complete sentences (remove partial sentences at the end)
+        out_samples = [truncate_to_complete_answer(smp, max_sentences=3) for smp in out_samples]
+        
         print(f"Out samples in starter loop: {out_samples}")
         return out_samples, self.tok_time
 
@@ -1282,15 +1305,62 @@ class GPTServer:
                         if isinstance(self.model, FinisherNode):
                              # 'outs' is currently logits [1, 1, vocab_size]
                              # We sample from it right here to get the token ID [1, 1]
-                             outs = sample(outs, temperature=self.temperature, top_k=self.top_k, vocab_size=self.model_config.vocab_size)
+                             idx_next = sample(outs, temperature=self.temperature, top_k=self.top_k, vocab_size=self.model_config.vocab_size)
                              
                              # [LOGGING REQUEST] Log the exact generation time
                              import datetime
                              current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")
                              print(f"\n[FINISHER LOG] Token generated at {current_time}")
-                             print(f"[FINISHER LOG] Token ID: {outs.item()}\n")
+                             print(f"[FINISHER LOG] Token ID: {idx_next.item()}\n")
+                             
+                             # Track samples in finisher for stop token detection
+                             if not hasattr(self, 'samples'):
+                                 self.samples = {}
+                             
+                             # Get tokens from message or initialize
+                             if "tokens" in in_msg:
+                                 self.samples[sample_id] = torch.cat(
+                                     (in_msg["tokens"].to(self.torch_model_device), idx_next.view(1, -1)), dim=1
+                                 )
+                             elif sample_id in self.samples:
+                                 self.samples[sample_id] = torch.cat(
+                                     (self.samples[sample_id], idx_next.view(1, -1)), dim=1
+                                 )
+                             else:
+                                 self.samples[sample_id] = idx_next.view(1, -1)
+                             
+                             # Detect stop tokens
+                             stopping_detected = False
+                             if hasattr(self, 'stop_tokens') and self.stop_tokens:
+                                 stopping_detected = detect_stop_tokens(
+                                     self.samples[sample_id], self.stop_tokens
+                                 )
+                             
+                             if VERB:
+                                 print(f"  Sampled token ID: {idx_next.item()}")
+                                 if hasattr(self, 'tok') and self.tok is not None:
+                                     sampled_token = self.tok.decode(idx_next.squeeze())
+                                     print(f"  Sampled token text: '{sampled_token}'")
+                                 if stopping_detected:
+                                     print(f"  >>> STOP TOKEN DETECTED! <<<")
+                                 print(f"{'='*80}\n")
+                             
+                             # If stop token detected, send stop message instead of token
+                             if stopping_detected:
+                                 if VERB:
+                                     print(f"[DEBUG] Finisher detected stop token for sample {sample_id}, sending stop signal")
+                                 out_msg = self._build_msg(
+                                     data="", sample_index=sample_id, stop=True
+                                 )
+                                 self.out_message_queue.append(out_msg)
+                                 self.out_queue_not_empty.set()
+                                 self.input_pos[sample_id] = self.input_pos[sample_id][-1:].add_(1)
+                                 iter += 1
+                                 continue  # Skip the rest, we already sent the message
+                             
+                             # Use idx_next as outs for sending
+                             outs = idx_next
 
-                        # DEBUG: Show what secondary node is sending
                         # DEBUG: Show what secondary node is sending
                         if VERB:
                             print(f"\n{'='*80}")
