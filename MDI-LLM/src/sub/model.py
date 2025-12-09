@@ -822,9 +822,9 @@ class CausalSelfAttention(nn.Module):
 
         if self.config.use_qk_norm:
             # DEBUG: Check weights
-            if hasattr(self, 'q_norm') and hasattr(self.q_norm, 'weight'):
-                w = self.q_norm.weight
-                print(f"[DEBUG] q_norm weight stats: min={w.min().item():.4f}, max={w.max().item():.4f}, mean={w.mean().item():.4f}")
+            # if hasattr(self, 'q_norm') and hasattr(self.q_norm, 'weight'):
+            #     w = self.q_norm.weight
+                # print(f"[DEBUG] q_norm weight stats: min={w.min().item():.4f}, max={w.max().item():.4f}, mean={w.mean().item():.4f}")
             
             q = self.q_norm(q)
             k = self.k_norm(k)

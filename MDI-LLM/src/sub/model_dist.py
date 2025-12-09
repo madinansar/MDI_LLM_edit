@@ -305,6 +305,12 @@ class GPTDistributed:
                 model_type=self.full_model_name,
                 model_seq_length=self.model_seq_length
             )
+            print("[DEBUG GPTDistributed.__init__] GPTServer constructed:")
+            print("  _ecdh_private_key:", getattr(self.gpt_serv, '_ecdh_private_key', None))
+            print("  _ecdh_public_key:", getattr(self.gpt_serv, '_ecdh_public_key', None))
+            print("  _serialize_public_key:", getattr(self.gpt_serv, '_serialize_public_key', None))
+            print("  _deserialize_peer_key:", getattr(self.gpt_serv, '_deserialize_peer_key', None))
+            print("  _derive_shared_key:", getattr(self.gpt_serv, '_derive_shared_key', None))
 
         elif "secondary" in self.node_type:
             # FIXME: secondary node may be completely agnostic of the used model and
@@ -433,48 +439,37 @@ class GPTDistributed:
     # ---------------------------------------------------------------------------------
 
     def configure_nodes(self, n_samples: int) -> int:
-        """
-        Send POST requests to the other nodes to inform them of their role, the number
-        of samples, and including their chunk of model.
-
-        Information sent:
-            - Node role ("role")
-            - Model config (GPTConfig as dict) ("model_config")
-            - Model parameters ("params") - from pickle.dumps() - if not split before
-            - Previous node information - from json file ("prev_node")
-            - Next node information - from json ("next_node")
-
-        Returns:
-            1 if success
-            0 if at least 1 node fails
-        """
         assert self.n_nodes is not None
         if self.node_type != "starter":
             raise ValueError("This method can only be called on starter nodes!")
         if not self.model_config:
             raise ValueError("The model configuration was not loaded!")
 
-        out = 1  # Return code
-        # Store the prev and next in a smart way
+        out = 1
         prev = self.node_config["nodes"]["starter"]
+        
+        # Logic to determine initial next node
         if self.n_secondary == 1:
-            next = self.node_config["nodes"]["starter"]
+            next_node_config = self.node_config["nodes"]["starter"]
         elif self.n_secondary > 1:
-            next = self.node_config["nodes"]["secondary"][1]
+            next_node_config = self.node_config["nodes"]["secondary"][1]
         else:
             warnings.warn("No secondary nodes found! Running standalone")
             return out
 
-        # For distributed mode, we need chunk_path
-        assert self.chunk_path is not None, "chunk_path is required for distributed mode"
+        assert self.chunk_path is not None
         node_chunks_dir = self.chunk_path.parent
 
-        # Secondary nodes config
-        for i, sec_node in enumerate(self.node_config["nodes"]["secondary"]):
-            if VERB:
-                print(f"Initializing secondary node n.{i}")
+        # --- ECDH Setup (Do this once effectively) ---
+        from sub.utils.encryption import generate_ecdh_keypair
+        if self.gpt_serv._ecdh_public_key is None or self.gpt_serv._ecdh_private_key is None:
+            self.gpt_serv._ecdh_private_key, self.gpt_serv._ecdh_public_key = generate_ecdh_keypair()
 
-            curr_msg = self.init_msg.copy()  # FIXME: maybe put before loop
+        # Iterate through secondary nodes
+        for i, sec_node in enumerate(self.node_config["nodes"]["secondary"]):
+            
+            # 1. PREPARE THE MESSAGE DATA FIRST
+            curr_msg = self.init_msg.copy()
             curr_msg["role"] = f"secondary:{i}"
             curr_msg["model_config"] = self.model_config.asdict()
             curr_msg["n_nodes"] = self.n_nodes
@@ -482,42 +477,62 @@ class GPTDistributed:
                 self.model_config.n_layer
             ]["N_LAYERS_SECONDARY"]
             curr_msg["n_samples"] = n_samples
-            curr_msg["prev_node"] = prev
-            curr_msg["next_node"] = next
             curr_msg["max_seq_length"] = self.model_seq_length
+            
+            # Set routing info
+            curr_msg["prev_node"] = prev
+            curr_msg["next_node"] = next_node_config
+
+            # Attach Public Key
+            curr_msg['ecdh_public_key'] = self.gpt_serv._serialize_public_key(self.gpt_serv._ecdh_public_key)
 
             if not self.model_was_split:
                 chunk_path = node_chunks_dir / f"model_secondary{i}.pth"
                 curr_msg["params"] = torch.load(chunk_path, device="cpu")
 
-            # Update next and prev for next iteration
-            prev = sec_node
-            if i == self.n_secondary - 1:  # Last iter in loop - finished
-                next = None
-            elif i == self.n_secondary - 2:  # Second to last iter
-                next = self.node_config["nodes"]["starter"]
-            else:
-                next = self.node_config["nodes"]["secondary"][i + 2]
-
-            # Send POST request
+            # 2. SEND SINGLE REQUEST (HANDSHAKE + CONFIG)
             target_addr = sec_node["addr"]
             target_port = sec_node["communication"]["port"]
-
             addr = f"http://{target_addr}:{target_port}/init"
-            out *= self._request_to_node("post", addr, curr_msg)
-
-            if not out:
-                if VERB:
-                    print("> Failed!")
-                logger_wp.error(f"Failed to initialize secondary node {i}!")
-                return out
-
+            
             if VERB:
-                print("> Success!")
-            logger_wp.info(f"Secondary node {i} was initialized successfully")
+                print(f"Initializing secondary node n.{i} at {addr}")
+
+            try:
+                # We use pickle to send complex Python objects
+                response = requests.post(addr, data=pickle.dumps(curr_msg), timeout=100)
+                
+                if response.status_code == 200:
+                    # 3. PROCESS RESPONSE (FINALIZE HANDSHAKE)
+                    sec_pubkey_bytes = response.content
+                    self.gpt_serv._peer_public_key = self.gpt_serv._deserialize_peer_key(sec_pubkey_bytes)
+                    #self.gpt_serv._shared_aes_key = self.gpt_serv._derive_shared_key(self.gpt_serv._peer_public_key)
+                    self.gpt_serv._shared_aes_key = self.gpt_serv._derive_shared_key(
+                        self.gpt_serv._ecdh_private_key, 
+                        self.gpt_serv._peer_public_key
+                    )
+                    
+                    if VERB: print(f"> Success! Shared key derived for node {i}.")
+                    logger_wp.info(f"Secondary node {i} initialized.")
+                else:
+                    print(f"> Failed with status {response.status_code}")
+                    out = 0
+            except Exception as e:
+                print(f"Initialization failed: {e}")
+                out = 0
+
+            if out == 0: return 0
+
+            # 4. UPDATE POINTERS FOR NEXT ITERATION
+            prev = sec_node
+            if i == self.n_secondary - 1:  # Last node
+                next_node_config = None # Or however you handle the end of the ring
+            elif i == self.n_secondary - 2:  # Second to last
+                next_node_config = self.node_config["nodes"]["starter"]
+            else:
+                next_node_config = self.node_config["nodes"]["secondary"][i + 2]
 
         return out
-
     def stop_nodes(self) -> int:
         """
         Send a PUT request to all nodes triggering the application interruption.

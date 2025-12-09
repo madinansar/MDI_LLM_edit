@@ -50,6 +50,8 @@ from sub.utils import (catch_loop_errors, count_transformer_blocks,
                        load_sd, plot_tokens_per_time, truncate_to_complete_answer,
                        waiting_animation)
 from sub.submodels import SecondaryNode, StarterNode, FinisherNode #madina
+from sub.utils.encryption import aes_encrypt_tensor_quantized, aes_decrypt_tensor_quantized
+
 import nltk
 nltk.download('stopwords')
 
@@ -94,7 +96,6 @@ class GPTServer:
     running = threading.Event()
     running.clear()
 
-    # Connections
     conn_to_next: Optional[OutputNodeConnection] = None
     conn_to_prev: Optional[InputNodeConnection] = None
 
@@ -140,6 +141,7 @@ class GPTServer:
     in_queue_thread = threading.Thread()
     out_queue_thread = threading.Thread()
 
+    # --- SINGLE, CONSOLIDATED __INIT__ ---
     def __init__(
         self,
         node_config: Dict,
@@ -154,40 +156,15 @@ class GPTServer:
     ):
         """
         Initialize GPTServer object.
-
-        This object will control a specific model (Starter/Secondary), allowing to pass
-        on the information in the chain while performing inference.
-
-        The couple 'node_config' & 'node_type' should be enough to uniquely identify
-        the node.
-
-        NOTE: this class assumes model partition has already been done.
-
-        Args:
-            node_config: node configuration information (from .json file)
-            node_type: string indicating the node type/role ("starter" or "secondary")
-                to indicate a specific secondary node, the node type should be
-                "secondary:n" where n is the zero-based index
-            *
-            model_config: Config object
-            chunk_path: path of the model chunk - for the starter node, it should be
-                provided always [this assumes the model has been partitioned already by
-                the wrapper class GPTDistr]
-            tokenizer_dir: directory containing the tokenizer config files
-            model_device: device where to load the model chunk; can be omitted if
-                specified in the node_config (arg will override it!)
-            [**kwargs: support for 'verb' and 'plots' bool values]
         """
-        # NOTE: this implementation supports running 1 node only
-        # Override global constants with kwargs
-        # Override global constants with kwargs
+        # 1. Handle Verbosity Overrides
         if "verb" in kwargs:
             global VERB
             VERB = bool(kwargs["verb"])
             if VERB:
                 print(f"Overriding 'verb': {VERB}")
         
-        self.verb = VERB  # <-- ADD THIS LINE
+        self.verb = VERB
 
         if "plots" in kwargs:
             global PLOTS
@@ -210,17 +187,32 @@ class GPTServer:
         self.ptdtype = DTYPE_TORCH_MAPPING[self.dtype]
         if not self.use_default_dtype:
             print(f"Overriding dtype to: {self.dtype}")
+        
         # bfloat16 check: Only check CUDA support if using CUDA
         if self.dtype == "bfloat16" and torch.cuda.is_available():
             if not torch.cuda.is_bf16_supported():
-                raise ValueError(
-                    "Specified bfloat16, but CUDA does not support this format"
-                )
-        # bfloat16 works on CPU in modern PyTorch, no check needed
+                raise ValueError("Specified bfloat16, but CUDA does not support this format")
 
         self.node_type = node_type
         self.node_config = node_config
         
+        # ---------------------------------------------------------------------
+        # 2. KEY GENERATION (Moved from the deleted __init__)
+        # ---------------------------------------------------------------------
+        from sub.utils.encryption import generate_ecdh_keypair, serialize_public_key, deserialize_public_key, derive_shared_key
+        self._ecdh_private_key, self._ecdh_public_key = generate_ecdh_keypair()
+        
+        if self.verb:
+            print("[DEBUG] ECDH private key generated:", self._ecdh_private_key)
+            print("[DEBUG] ECDH public key generated:", self._ecdh_public_key)
+            
+        self._serialize_public_key = serialize_public_key
+        self._deserialize_peer_key = deserialize_public_key
+        self._derive_shared_key = derive_shared_key
+        self._peer_public_key = None
+        self._shared_aes_key = None
+        # ---------------------------------------------------------------------
+
         # Get model_weights from kwargs if provided (for HF direct loading)
         model_weights = kwargs.pop("model_weights", None)
 
@@ -344,8 +336,8 @@ class GPTServer:
         self.inference_port_out = self.own_config["inference"]["port_out"]
 
         self.start_webserv()
-
     # ---------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------
     def start_webserv(self):
         """
         Launch the web server.
@@ -375,7 +367,6 @@ class GPTServer:
         cp.engine.exit()
 
     # ---------------------------------------------------------------------------------
-
     def launch_starter(
         self, n_samples: int, max_tokens: int, prompt: Optional[str] = None
     ) -> Tuple[List[str], List[Tuple[int, float]]]:
@@ -1126,28 +1117,39 @@ class GPTServer:
 
                             # Forward in local model (first piece)
                             idx_cond = self.model(idx_cond, self.input_pos[sample_id])
-                            
                             # CRITICAL: Ensure output stays in model's dtype (float16)
                             if idx_cond.dtype != self.ptdtype:
                                 idx_cond = idx_cond.to(dtype=self.ptdtype)
 
+                            # Use ECDH-derived key for encryption
+                            if self._shared_aes_key is None:
+                                raise RuntimeError("AES key not established. ECDH handshake required.")
+                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(idx_cond, self._shared_aes_key)
+                            # === LOG Encrypted garbage value ===
+                            if self.verb:
+                                # Print the first 64 characters (32 bytes) of the ciphertext in Hex
+                                print(f"  [DEBUG CIPHERTEXT] {ciphertext[:32].hex()}...") 
+                            # ================
+                            encrypted_payload = {
+                                'ciphertext': ciphertext,
+                                'nonce': nonce,
+                                'tag': tag,
+                                'shape': shape,
+                                'dtype': dtype_name
+                            }
+
                             # DEBUG: Show data being sent from starter
                             if VERB:
                                 print(f"\n{'='*80}")
-                                print(f"[STARTER SENDING] Sample {sample_id}, Iter {self.iter_ind[sample_id]}")
-                                print(f"  Output data shape: {idx_cond.shape}")
-                                print(f"  Output data dtype: {idx_cond.dtype}")
-                                print(f"  Output data device: {idx_cond.device}")
-                                print(f"  Data type: ACTIVATIONS (hidden states from starter layers)")
-                                print(f"  Activation stats: min={idx_cond.min().item():.4f}, max={idx_cond.max().item():.4f}, mean={idx_cond.mean().item():.4f}")
-                                print(f"  First 5 values of first element: {idx_cond[0, 0, :5].tolist()}")
-                                if hasattr(self, 'tok') and self.tok is not None:
-                                    current_text = self.tok.decode(self.samples[sample_id].squeeze())
-                                    print(f"  Current tokens: {current_text}")
+                                print(f"[STARTER SENDING ENCRYPTED] Sample {sample_id}, Iter {self.iter_ind[sample_id]}")
+                                print(f"  Encrypted data length: {len(ciphertext)}")
+                                print(f"  Nonce: {nonce.hex()}")
+                                print(f"  Tag: {tag.hex()}")
+                                print(f"  Shape: {shape}, Dtype: {dtype_name}")
                                 print(f"{'='*80}\n")
 
                             # Send message (include tokens for secondary node to decode)
-                            out_msg = self._build_msg(idx_cond, sample_id, tokens=self.samples[sample_id])
+                            out_msg = self._build_msg(encrypted_payload, sample_id, tokens=self.samples[sample_id])
                         else:
                             # Generation finished
                             print(f"[DEBUG] Finished sample {sample_id}")
@@ -1249,8 +1251,20 @@ class GPTServer:
                         if iter >= self.n_samples:
                             first_glob_iter = False
 
-                        # CRITICAL FIX: Convert both device AND dtype to match model
-                        idx = in_msg["data"].to(device=self.torch_model_device, dtype=self.ptdtype)
+                        # DECRYPT activations received from starter
+                        data = in_msg["data"]
+                        if isinstance(data, dict) and all(k in data for k in ("ciphertext", "nonce", "tag", "shape", "dtype")):
+                            idx = aes_decrypt_tensor_quantized(
+                                data["ciphertext"],
+                                data["nonce"],
+                                data["tag"],
+                                data["shape"],
+                                getattr(torch, data["dtype"]),
+                                self._shared_aes_key,
+                                device=self.torch_model_device
+                            )
+                        else:
+                            idx = data.to(device=self.torch_model_device, dtype=self.ptdtype)
                         
                         # DEBUG: Show what secondary node received
                         if VERB:
@@ -1292,10 +1306,9 @@ class GPTServer:
                         for ind_b, block in enumerate(self.model.transformer.h):
                             block.attn.kv_cache = curr_kvcache[ind_b]
                         
-                        #madina
+
                         # Forward pass
                         outs = self.model(idx, input_pos=self.input_pos[sample_id])
-                        
                         # CRITICAL: For non-finisher nodes, ensure output stays in model's dtype (float16)
                         if not isinstance(self.model, FinisherNode) and outs.dtype != self.ptdtype:
                             outs = outs.to(dtype=self.ptdtype)
@@ -1379,9 +1392,24 @@ class GPTServer:
                                 
                             print(f"{'='*80}\n")
 
+
+                        # ENCRYPT activations before sending to next node (if not FinisherNode)
+                        if not isinstance(self.model, FinisherNode):
+                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(outs, self._shared_aes_key)
+                            encrypted_payload = {
+                                'ciphertext': ciphertext,
+                                'nonce': nonce,
+                                'tag': tag,
+                                'shape': shape,
+                                'dtype': dtype_name
+                            }
+                            outs_to_send = encrypted_payload
+                        else:
+                            outs_to_send = outs
+
                         # Build msg (pass along tokens if present)
                         tokens_to_send = in_msg.get("tokens", None)
-                        out_msg = self._build_msg(outs, sample_id, tokens=tokens_to_send)
+                        out_msg = self._build_msg(outs_to_send, sample_id, tokens=tokens_to_send)
                         # Send to next
                         self.out_message_queue.append(out_msg)
                         self.out_queue_not_empty.set()
@@ -1427,11 +1455,38 @@ class GPTServer:
         ) and self.model is None:  # Only for non-init nodes
             if len(path) > 0 and path[0] == "init":
                 assert not self.running.is_set()
+
                 init_msg = pickle.loads(cp.request.body.read())
+
+                # ---------------------------------------------------------
+                # NEW CODE: Handle ECDH Handshake
+                # ---------------------------------------------------------
+                # Extract the Starter's Public Key
+                starter_pub_key_bytes = init_msg.get("ecdh_public_key")
+                
+                if starter_pub_key_bytes:
+                    if self.verb:
+                        print(f"[DEBUG] Received Starter Public Key ({len(starter_pub_key_bytes)} bytes)")
+                    
+                    # Deserialize and Derive Shared Secret
+                    try:
+                        peer_key = self._deserialize_peer_key(starter_pub_key_bytes)
+                        #self._shared_aes_key = self._derive_shared_key(peer_key)
+                        self._shared_aes_key = self._derive_shared_key(self._ecdh_private_key, peer_key)
+                        if self.verb:
+                            print(f"[INFO] ECDH Shared Secret derived successfully.")
+                    except Exception as e:
+                        print(f"[ERROR] ECDH Derivation failed: {e}")
+                        raise cp.HTTPError(500, f"Crypto Handshake Failed: {e}")
+                # ---------------------------------------------------------
+
                 if self.node_type is None:
                     self.role = self.node_type = init_msg["role"]
                 self.prev_node = init_msg["prev_node"]
                 self.next_node = init_msg["next_node"]
+                
+                # ... (Keep all your existing configuration logic here) ...
+   
                 # Assume model config is not initialized
                 self.model_config = Config(**init_msg["model_config"])
                 self.n_nodes = init_msg["n_nodes"]
@@ -1443,7 +1498,7 @@ class GPTServer:
                 )
 
                 if "params" in init_msg:
-                    if VERB:
+                    if self.verb: # changed VERB to self.verb
                         print("Received parameters from starter")
                     self._init_model(
                         self.n_layers_local, model_parameters=init_msg["params"]
@@ -1459,7 +1514,7 @@ class GPTServer:
                             "- please specify a model chunk path when initializing "
                             "GPTServer object"
                         )
-                    if VERB:
+                    if self.verb: # changed VERB to self.verb
                         print("Loading parameters from disk")
                     self._init_model(self.n_layers_local, model_path=self.model_path)
 
@@ -1468,34 +1523,36 @@ class GPTServer:
                 # Load tokenizer if provided (for debugging)
                 if "tokenizer_dir" in init_msg and init_msg["tokenizer_dir"]:
                     try:
-                        if VERB:
+                        if self.verb:
                             print(f"Loading tokenizer from {init_msg['tokenizer_dir']}")
                         self._load_tokenizer(init_msg["tokenizer_dir"])
                     except Exception as e:
-                        if VERB:
+                        if self.verb:
                             print(f"Warning: Could not load tokenizer: {e}")
 
-                if VERB:
+                if self.verb:
                     print(f"{self.n_nodes} Nodes, generating {self.n_samples} samples")
-
-                if VERB:
                     print(f"[INFO] Starting operation - {self.node_type} node")
-                # FIXME: review threads
+                
                 logger_wp.info("Received initialization information!")
+                
                 self.inference_thread = threading.Thread(
                     target=self.start_inference, daemon=True, args=(self.n_samples,)
                 )
                 self.inference_thread.start()
+
+                # ---------------------------------------------------------
+                # NEW CODE: Return Server's Public Key
+                # ---------------------------------------------------------
                 cp.response.status = 200
+                
+                # We must return our public key so the Client can derive the secret too
+                my_pub_key_bytes = self._serialize_public_key(self._ecdh_public_key)
+                return my_pub_key_bytes 
+                # ---------------------------------------------------------
+
             else:
                 raise cp.HTTPError(404, "Not found")
-        elif self.model is not None:
-            raise cp.HTTPError(
-                403,
-                f"Failed to configure node - the model was already initialized: {self.node_type}",
-            )
-        else:
-            raise cp.HTTPError(403, "Unable to initialize node!")
 
     def PUT(self, *path):
         """
@@ -1515,7 +1572,3 @@ class GPTServer:
                 cp.response.status = 200
             else:
                 raise cp.HTTPError(404, "Not found!")
-
-    def DELETE(self):
-        """Not implemented"""
-        raise cp.HTTPError(501, "DELETE not implemented!")
