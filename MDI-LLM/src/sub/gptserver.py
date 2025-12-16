@@ -1005,13 +1005,42 @@ class GPTServer:
                         self.running.clear()  # TODO: remove
                     else:
                         sample_id = in_msg["sample_index"]
-                        idx = in_msg["data"].to(self.model_device)
+                        
+                        # DECRYPT data from finisher (ring topology)
+                        data = in_msg["data"]
+                        if isinstance(data, dict) and all(k in data for k in ("ciphertext", "nonce", "tag", "shape", "dtype")):
+                            # Encrypted data from finisher - decrypt it
+                            if self._aes_key_in is None:
+                                raise RuntimeError("Starter: AES key_in not established with finisher.")
+                            
+                            if VERB:
+                                print(f"\n[DECRYPT FROM FINISHER] Decrypting token")
+                                print(f"  Using _aes_key_in: {self._aes_key_in[:16].hex()}...")
+                                print(f"  Ciphertext length: {len(data['ciphertext'])} bytes")
+                            
+                            idx = aes_decrypt_tensor_quantized(
+                                data["ciphertext"],
+                                data["nonce"],
+                                data["tag"],
+                                data["shape"],
+                                getattr(torch, data["dtype"]),
+                                self._aes_key_in,
+                                device=self.torch_model_device
+                            )
+                            
+                            if VERB:
+                                print(f"  [DECRYPT SUCCESS] Decrypted to shape: {idx.shape}, dtype: {idx.dtype}")
+                                print(f"  Token ID: {idx.item()}\n")
+                        else:
+                            # Unencrypted data (first iteration or error)
+                            idx = data.to(self.model_device)
+                        
                         stopping_detected = False
 
                         # DEBUG: Show what starter received back from secondary
                         if VERB:
                             print(f"\n{'='*80}")
-                            print(f"[STARTER RECEIVED] Sample {sample_id}, about to process Iter {self.iter_ind[sample_id]}")
+                            print(f"[RECEIVED] Sample {sample_id}, about to process Iter {self.iter_ind[sample_id]}")
                             print(f"  Received data shape: {idx.shape}")
                             print(f"  Received data dtype: {idx.dtype}")
                             print(f"  Received data device: {idx.device}")
@@ -1149,7 +1178,7 @@ class GPTServer:
                             
                             # DEBUG: Log key info before encryption
                             if self.verb:
-                                print(f"\n[STARTER ENCRYPT] About to encrypt to next node")
+                                print(f"\n[ENCRYPT TO NEXT] About to encrypt")
                                 print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
                                 print(f"  Data shape: {idx_cond.shape}, dtype: {idx_cond.dtype}")
                             
@@ -1170,7 +1199,7 @@ class GPTServer:
                             # DEBUG: Show data being sent from starter
                             if VERB:
                                 print(f"\n{'='*80}")
-                                print(f"[STARTER SENDING ENCRYPTED] Sample {sample_id}, Iter {self.iter_ind[sample_id]}")
+                                print(f"[SENDING ENCRYPTED] Sample {sample_id}, Iter {self.iter_ind[sample_id]}")
                                 print(f"  Encrypted data length: {len(ciphertext)}")
                                 print(f"  Nonce: {nonce.hex()}")
                                 print(f"  Tag: {tag.hex()}")
@@ -1285,7 +1314,7 @@ class GPTServer:
                         if isinstance(data, dict) and all(k in data for k in ("ciphertext", "nonce", "tag", "shape", "dtype")):
                             # DEBUG: Log key info before decryption
                             if self.verb:
-                                print(f"\n[{self.node_type.upper()} DECRYPT] About to decrypt from previous node")
+                                print(f"\n[DECRYPT FROM PREVIOUS] About to decrypt")
                                 print(f"  Using _aes_key_in: {self._aes_key_in[:16].hex() if self._aes_key_in else 'None'}...")
                                 print(f"  Ciphertext length: {len(data['ciphertext'])} bytes")
                                 print(f"  Expected shape: {data['shape']}, dtype: {data['dtype']}")
@@ -1352,8 +1381,7 @@ class GPTServer:
                         if not isinstance(self.model, FinisherNode) and outs.dtype != self.ptdtype:
                             outs = outs.to(dtype=self.ptdtype)
 
-                        # [NEW CODE] If this is the Finisher, generate the token here!
-                        # CORRECT - This checks the class type we assigned in _init_model
+                        # [FINISHER NODE] Generate token and encrypt back to starter
                         if isinstance(self.model, FinisherNode):
                              # 'outs' is currently logits [1, 1, vocab_size]
                              # We sample from it right here to get the token ID [1, 1]
@@ -1362,8 +1390,8 @@ class GPTServer:
                              # [LOGGING REQUEST] Log the exact generation time
                              import datetime
                              current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")
-                             print(f"\n[FINISHER LOG] Token generated at {current_time}")
-                             print(f"[FINISHER LOG] Token ID: {idx_next.item()}\n")
+                             print(f"\n[TOKEN GENERATED] at {current_time}")
+                             print(f"[TOKEN ID] {idx_next.item()}\n")
                              
                              # Track samples in finisher for stop token detection
                              if not hasattr(self, 'samples'):
@@ -1410,8 +1438,37 @@ class GPTServer:
                                  iter += 1
                                  continue  # Skip the rest, we already sent the message
                              
-                             # Use idx_next as outs for sending
+                             # Use idx_next as outs for encryption and sending
                              outs = idx_next
+                             
+                             # ENCRYPT token back to starter (ring topology)
+                             if self._aes_key_out is None:
+                                 raise RuntimeError("Finisher: AES key_out not established with starter.")
+                             
+                             if VERB:
+                                 print(f"\n[ENCRYPT TO STARTER] Encrypting token")
+                                 print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
+                                 print(f"  Token ID: {idx_next.item()}, dtype: {idx_next.dtype}")
+                             
+                             ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(outs, self._aes_key_out)
+                             encrypted_payload = {
+                                 'ciphertext': ciphertext,
+                                 'nonce': nonce,
+                                 'tag': tag,
+                                 'shape': shape,
+                                 'dtype': dtype_name
+                             }
+                             
+                             if VERB:
+                                 print(f"[ENCRYPTED] Length: {len(ciphertext)}, Nonce: {nonce.hex()[:16]}..., Tag: {tag.hex()[:16]}...\n")
+                             
+                             # Send encrypted token to starter
+                             out_msg = self._build_msg(encrypted_payload, sample_id)
+                             self.out_message_queue.append(out_msg)
+                             self.out_queue_not_empty.set()
+                             self.input_pos[sample_id] = self.input_pos[sample_id][-1:].add_(1)
+                             iter += 1
+                             continue  # Skip normal processing below
 
                         # DEBUG: Show what secondary node is sending
                         if VERB:
@@ -1439,7 +1496,7 @@ class GPTServer:
                             
                             # DEBUG: Log key info before encryption
                             if self.verb:
-                                print(f"\n[{self.node_type.upper()} ENCRYPT] About to encrypt to next node")
+                                print(f"\n[ENCRYPT TO NEXT] About to encrypt")
                                 print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
                                 print(f"  Data shape: {outs.shape}, dtype: {outs.dtype}")
                             
@@ -1498,6 +1555,41 @@ class GPTServer:
                 [params] (model parameters - needed if no chunk path was passed)
                 n_samples (number of produced samples)
         """
+        # ---------------------------------------------------------
+        # /exchange_key_ring endpoint (for finisher→starter key exchange)
+        # This must be accessible to the STARTER node, so it's outside the secondary-only block
+        # ---------------------------------------------------------
+        if len(path) > 0 and path[0] == "exchange_key_ring":
+            if self.verb:
+                print(f"[DEBUG] /exchange_key_ring: Finisher requesting key exchange")
+            
+            finisher_pub_key_bytes = cp.request.body.read()
+            
+            if finisher_pub_key_bytes:
+                if self.verb:
+                    print(f"[DEBUG] /exchange_key_ring: Received finisher public key ({len(finisher_pub_key_bytes)} bytes)")
+                
+                try:
+                    # Deserialize the finisher's public key
+                    finisher_public_key = self._deserialize_peer_key(finisher_pub_key_bytes)
+                    # Starter derives key_in for decrypting tokens from finisher
+                    self._aes_key_in = self._derive_shared_key(self._ecdh_private_key, finisher_public_key)
+                    if self.verb:
+                        print(f"[INFO] /exchange_key_ring: Starter key_in (from finisher) derived successfully")
+                        print(f"[DEBUG] /exchange_key_ring: key_in = {self._aes_key_in[:16].hex()}...")
+                    
+                    # Return our public key so finisher can derive key_out
+                    cp.response.status = 200
+                    my_pub_key_bytes = self._serialize_public_key(self._ecdh_public_key)
+                    return my_pub_key_bytes
+                    
+                except Exception as e:
+                    print(f"[ERROR] /exchange_key_ring: Key derivation failed: {e}")
+                    raise cp.HTTPError(500, f"Ring key exchange failed: {e}")
+            else:
+                raise cp.HTTPError(400, "No public key received from finisher")
+        # ---------------------------------------------------------
+        
         if (
             self.node_type is None or "secondary" in self.node_type
         ) and self.model is None:  # Only for non-init nodes
@@ -1621,8 +1713,35 @@ class GPTServer:
                         print(f"[ERROR] Failed to exchange keys with next node: {e}")
                         raise
                 elif isinstance(self.model, FinisherNode):
+                    # Finisher establishes key_out with starter to close the ring
+                    starter_url = f"http://{self.next_node['addr']}:{self.next_node['communication']['port']}/exchange_key_ring"
                     if self.verb:
-                        print(f"[INFO] Finisher node - no key_out needed (no next node)")
+                        print(f"[INFO] Finisher initiating key exchange with starter at {starter_url}")
+                    try:
+                        my_public_key = self._serialize_public_key(self._ecdh_public_key)
+                        response = requests.post(starter_url, data=my_public_key, timeout=10)
+                        if response.status_code == 200:
+                            starter_public_key_bytes = response.content
+                            starter_public_key = self._deserialize_peer_key(starter_public_key_bytes)
+                            self._next_node_public_key = starter_public_key
+                            self._aes_key_out = self._derive_shared_key(self._ecdh_private_key, starter_public_key)
+                            if self.verb:
+                                print(f"[INFO] ECDH key_out (for encryption to starter) derived successfully.")
+                                print(f"[DEBUG] Finisher key_out = {self._aes_key_out[:16].hex()}...")
+                        else:
+                            error_msg = f"Finisher key exchange with starter failed: status {response.status_code}"
+                            print(f"[ERROR] {error_msg}")
+                            raise RuntimeError(error_msg)
+                    except requests.exceptions.RequestException as e:
+                        error_msg = f"Finisher key exchange network error: {e}"
+                        print(f"[ERROR] {error_msg}")
+                        raise RuntimeError(error_msg)
+                    except Exception as e:
+                        error_msg = f"Finisher key exchange failed: {e}"
+                        print(f"[ERROR] {error_msg}")
+                        import traceback
+                        traceback.print_exc()
+                        raise
                 # ---------------------------------------------------------
 
                 # ---------------------------------------------------------
