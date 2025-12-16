@@ -93,6 +93,7 @@ N_LAYERS_NODES = {
     },
     4: {
         22: {"N_LAYERS_START": 4, "N_LAYERS_SECONDARY": 6},
+        28: {"N_LAYERS_START": 5, "N_LAYERS_SECONDARY": 7},  # Qwen3-1.7B: 5+7+8+8=28
         32: {"N_LAYERS_START": 5, "N_LAYERS_SECONDARY": 9},
     },
     5: {

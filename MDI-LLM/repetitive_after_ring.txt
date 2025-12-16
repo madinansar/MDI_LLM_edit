@@ -1,0 +1,2611 @@
+I am trying to implement ring topology. Right now my code is producing repetitive tokens, I don't know why. Help me find the error and fix it. Here is my logs and code. Write exactly what to chnage and why
+
+[STARTER RECEIVED] Sample 0, about to process Iter 92
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+  [DEBUG CIPHERTEXT] ef33f1e5b89ef8b4f2c935228c17c08c6da7d53c3eab083a1b37de2ea0a96ac4...
+
+================================================================================
+[STARTER SENDING ENCRYPTED] Sample 0, Iter 92
+  Encrypted data length: 5673
+  Nonce: cf0bdc910ea21f8fb18a8f05
+  Tag: 935fb1c406dddc81a76ab716692d7133
+  Shape: torch.Size([1, 1, 2048]), Dtype: bfloat16
+================================================================================
+
+Processing samples ⠴
+================================================================================
+[STARTER RECEIVED] Sample 0, about to process Iter 93
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+  [DEBUG CIPHERTEXT] c75d3e5946a598ca8b102f668e8cb832fd3c0e0668f0ba8560036d02d1061e07...
+
+================================================================================
+[STARTER SENDING ENCRYPTED] Sample 0, Iter 93
+  Encrypted data length: 5673
+  Nonce: 7ecac205076b292f5ba0e754
+  Tag: 54e269b2aa1bb5aa1615075c62de4ffb
+  Shape: torch.Size([1, 1, 2048]), Dtype: bfloat16
+================================================================================
+
+Processing samples ⠙
+================================================================================
+[STARTER RECEIVED] Sample 0, about to process Iter 94
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+  [DEBUG CIPHERTEXT] f7a1ebf7c94357b264c6e1694629be583c136aad83eb0c503d34a107e086b6e3...
+
+================================================================================
+[STARTER SENDING ENCRYPTED] Sample 0, Iter 94
+  Encrypted data length: 5673
+  Nonce: 20ad94d9117888daa2176386
+  Tag: 1d721954e0e509d5e20a246d508e5102
+  Shape: torch.Size([1, 1, 2048]), Dtype: bfloat16
+================================================================================
+
+Processing samples ⠋
+================================================================================
+[STARTER RECEIVED] Sample 0, about to process Iter 95
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+  [DEBUG CIPHERTEXT] 64ddbd25b28737e866261f4f585a15f3af6da6df68cf854287c3c777644d22a9...
+
+================================================================================
+[STARTER SENDING ENCRYPTED] Sample 0, Iter 95
+  Encrypted data length: 5673
+  Nonce: 734cc3e7571985563aaa00b8
+  Tag: d67440348adaf64f03da4c7ff8ecfcae
+  Shape: torch.Size([1, 1, 2048]), Dtype: bfloat16
+================================================================================
+
+Processing samples ⠦
+================================================================================
+[STARTER RECEIVED] Sample 0, about to process Iter 96
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+  [DEBUG CIPHERTEXT] 3e6e948cb7df0ec949b4ad72beba63d088e0514340968b59803ff1a249b93946...
+
+================================================================================
+[STARTER SENDING ENCRYPTED] Sample 0, Iter 96
+  Encrypted data length: 5673
+  Nonce: d6462fef2787bd96f66e038a
+  Tag: 1125a05ab56552087c1ebfc3306e1032
+  Shape: torch.Size([1, 1, 2048]), Dtype: bfloat16
+================================================================================
+
+Processing samples ⠴
+================================================================================
+[STARTER RECEIVED] Sample 0, about to process Iter 97
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+  [DEBUG CIPHERTEXT] 22cde41d7d13fbebd70ed65ba5642284c677d5ba80214f2f5fcf3e2d093b53a9...
+
+================================================================================
+[STARTER SENDING ENCRYPTED] Sample 0, Iter 97
+  Encrypted data length: 5673
+  Nonce: 5152814151df3f80f6bc1799
+  Tag: ac320e3f5eadb0d65fb00727a3af271b
+  Shape: torch.Size([1, 1, 2048]), Dtype: bfloat16
+================================================================================
+
+Processing samples ⠙
+================================================================================
+[STARTER RECEIVED] Sample 0, about to process Iter 98
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+  [DEBUG CIPHERTEXT] 14f0f7d8150bac054f8afcdec5e6c5c081be28d341dfe24bf35581228f1a0974...
+
+================================================================================
+[STARTER SENDING ENCRYPTED] Sample 0, Iter 98
+  Encrypted data length: 5673
+  Nonce: 1034be0aae535b6b5784febf
+  Tag: 5f67ac92afb5af76df39db2c440424b7
+  Shape: torch.Size([1, 1, 2048]), Dtype: bfloat16
+================================================================================
+
+Processing samples ⠋
+================================================================================
+[STARTER RECEIVED] Sample 0, about to process Iter 99
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+  [DEBUG CIPHERTEXT] 524e56d09088523ab0e33deb2d5cf3cfab87839ad40f79cb6db84371f7cec62d...
+
+================================================================================
+[STARTER SENDING ENCRYPTED] Sample 0, Iter 99
+  Encrypted data length: 5673
+  Nonce: da064dca4d8037f18b88ee7b
+  Tag: 13f2788d4dc3214888043d4c54533e0b
+  Shape: torch.Size([1, 1, 2048]), Dtype: bfloat16
+================================================================================
+
+Processing samples ⠦
+================================================================================
+[STARTER RECEIVED] Sample 0, about to process Iter 100
+  Received data shape: torch.Size([1])
+  Received data dtype: torch.int64
+  Received data device: cpu
+  Data type: TOKEN IDs
+  Token IDs: 14570
+  Decoded text: ucc
+================================================================================
+
+[DEBUG BRANCH] n_nodes = 2, checking if n_nodes == 1: False
+  Received Token ID: 14570, Token: 'ucc'
+
+[DEBUG] Finished sample 0
+[INFO] Generation completed!
+Truncated samples:
+- Sample 0 truncated to 117/117
+Out samples in starter loop: ['Answer directly and concisely.\n\nQuestion: who wrote Romeo and Juliet?\n\nAnswer: The following concicely concicely concicely concancuccuccuccucuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccuccucc']
+[INFO] Shutting down
+
+================================================================================
+
+[DEBUG CACHE] Sample 0 | Iter 95 | Input Pos: tensor([111])
+Processing samples ⠙
+[FINISHER LOG] Token generated at 17:49:20.238978
+[FINISHER LOG] Token ID: 14570
+
+  Sampled token ID: 14570
+================================================================================
+
+
+================================================================================
+[SECONDARY secondary:0 SENDING] Sample 0
+  [SUCCESS] Sending Generated Token ID: 14570
+================================================================================
+
+Processing samples ⠸
+================================================================================
+[SECONDARY secondary:0 RECEIVED] Sample 0
+  Received data shape: torch.Size([1, 1, 2048])
+  Received data dtype: torch.bfloat16
+  Received data device: cpu
+  Data type: ACTIVATIONS (hidden states)
+  Activation stats: min=-23.2500, max=61.5000, mean=-0.0292
+  First 5 values of first element: [2.515625, 0.5390625, 0.2265625, -0.4296875, 1.34375]
+================================================================================
+
+[DEBUG CACHE] Sample 0 | Iter 96 | Input Pos: tensor([112])
+Processing samples ⠋
+[FINISHER LOG] Token generated at 17:49:22.670417
+[FINISHER LOG] Token ID: 14570
+
+  Sampled token ID: 14570
+================================================================================
+
+
+================================================================================
+[SECONDARY secondary:0 SENDING] Sample 0
+  [SUCCESS] Sending Generated Token ID: 14570
+================================================================================
+
+
+================================================================================
+[SECONDARY secondary:0 RECEIVED] Sample 0
+  Received data shape: torch.Size([1, 1, 2048])
+  Received data dtype: torch.bfloat16
+  Received data device: cpu
+  Data type: ACTIVATIONS (hidden states)
+  Activation stats: min=-22.3750, max=61.0000, mean=-0.0151
+  First 5 values of first element: [2.203125, 0.9921875, 0.67578125, 0.39453125, 1.734375]
+================================================================================
+
+[DEBUG CACHE] Sample 0 | Iter 97 | Input Pos: tensor([113])
+Processing samples ⠦
+[FINISHER LOG] Token generated at 17:49:24.956931
+[FINISHER LOG] Token ID: 14570
+
+  Sampled token ID: 14570
+================================================================================
+
+
+================================================================================
+[SECONDARY secondary:0 SENDING] Sample 0
+  [SUCCESS] Sending Generated Token ID: 14570
+================================================================================
+
+Processing samples ⠇
+================================================================================
+[SECONDARY secondary:0 RECEIVED] Sample 0
+  Received data shape: torch.Size([1, 1, 2048])
+  Received data dtype: torch.bfloat16
+  Received data device: cpu
+  Data type: ACTIVATIONS (hidden states)
+  Activation stats: min=-22.1250, max=59.7500, mean=0.0017
+  First 5 values of first element: [1.5234375, 1.2421875, 0.3671875, 1.0625, 1.96875]
+================================================================================
+
+[DEBUG CACHE] Sample 0 | Iter 98 | Input Pos: tensor([114])
+Processing samples ⠴
+[FINISHER LOG] Token generated at 17:49:27.243008
+[FINISHER LOG] Token ID: 14570
+
+  Sampled token ID: 14570
+================================================================================
+
+
+================================================================================
+[SECONDARY secondary:0 SENDING] Sample 0
+  [SUCCESS] Sending Generated Token ID: 14570
+================================================================================
+
+
+================================================================================
+[SECONDARY secondary:0 RECEIVED] Sample 0
+  Received data shape: torch.Size([1, 1, 2048])
+  Received data dtype: torch.bfloat16
+  Received data device: cpu
+  Data type: ACTIVATIONS (hidden states)
+  Activation stats: min=-22.8750, max=60.2500, mean=-0.0036
+  First 5 values of first element: [1.765625, 0.62890625, 0.5625, 0.390625, 2.515625]
+================================================================================
+
+[DEBUG CACHE] Sample 0 | Iter 99 | Input Pos: tensor([115])
+Processing samples ⠙
+[FINISHER LOG] Token generated at 17:49:29.460489
+[FINISHER LOG] Token ID: 14570
+
+  Sampled token ID: 14570
+================================================================================
+
+
+================================================================================
+[SECONDARY secondary:0 SENDING] Sample 0
+  [SUCCESS] Sending Generated Token ID: 14570
+================================================================================
+
+
+# Copyright (c) 2024 Davide Macario
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import gc
+import json
+import logging
+import os
+import pickle
+import threading
+import time
+import warnings
+from collections import deque
+from contextlib import nullcontext
+from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
+from datetime import datetime
+
+import accelerate
+import cherrypy as cp
+import torch
+
+from sub.config import DEVICE as DEFAULT_DEVICE
+from sub.config import (DTYPE, DTYPE_TORCH_MAPPING, N_LAYERS_NODES,
+                        TEMPERATURE, TOP_K)
+from sub.connections import InputNodeConnection, OutputNodeConnection
+from sub.model import Config, KVCache, sample
+from sub.prompts import (PromptStyle, get_user_prompt, has_prompt_style,
+                         load_prompt_style)
+from sub.tokenizer import Tokenizer
+from sub.typing import FileType
+from sub.utils import (catch_loop_errors, count_transformer_blocks,
+                       detect_complete_answer, detect_stop_tokens, find_eot,
+                       load_sd, plot_tokens_per_time, truncate_to_complete_answer,
+                       waiting_animation)
+from sub.submodels import SecondaryNode, StarterNode, FinisherNode #madina
+from sub.utils.encryption import aes_encrypt_tensor_quantized, aes_decrypt_tensor_quantized
+from sub.utils.encryption import generate_ecdh_keypair, serialize_public_key, deserialize_public_key, derive_shared_key
+       
+import nltk
+nltk.download('stopwords')
+
+# -------------------------------------------------------------------------------------
+
+script_dir = Path(os.path.dirname(__file__))
+
+# TODO: logger
+logger_wp = logging.getLogger("model_dist")
+logger_wp.setLevel(logging.ERROR)
+
+VERB = False
+PLOTS = False
+
+
+class GPTServer:
+    """
+    Communication server - Cherrypy-based webserver used for exchanging
+    (receiving) setup and control information
+    """
+
+    exposed = True
+
+    model: Optional[Union[StarterNode, SecondaryNode]] = None
+    next_node: Optional[Dict] = None
+    prev_node: Optional[Dict] = None
+    model_params: Optional[Dict] = None
+    model_config: Optional[Config] = None
+    model_type = None
+
+    # Number of samples that have been requested so far in the current run:
+    n_samples: int = 0
+    # Map sample ID to n. of iteration - initialized to 0 when new sample is created
+    iter_ind: Dict[int, int] = {}
+
+    T_i: Dict[int, int] = {}  # Contains size of context of each prompt
+    # Will contain the input pos. of all samples:
+    input_pos: Dict[int, torch.Tensor] = {}
+    kvcaches: Dict[int, List[KVCache]] = {}
+
+    # Set iff the model has been initialized and it is ready to perform inference.
+    running = threading.Event()
+    running.clear()
+
+    conn_to_next: Optional[OutputNodeConnection] = None
+    conn_to_prev: Optional[InputNodeConnection] = None
+
+    """
+    Message format:
+    - Sample index: unique ID of the sample; used to select correct cache
+    - Data: activation - tensor
+    - stop: flag; if set to True, it is used to advertise the end of generation for the
+        current sample (by ID)
+
+    NOTE: if set to True, DO NOT PROCESS DATA (should be empty);
+
+    This logic allows to delete caches for completed samples and make samples
+    independent.
+    """
+    msg_format = {"sample_index": 0, "data": None, "stop": False}
+
+    # Input message queue
+    in_message_queue = deque([])
+    in_queue_not_empty = threading.Event()  # Replaces busy waiting
+    in_queue_not_empty.clear()
+    # Output message queue
+    out_message_queue = deque([])
+    out_queue_not_empty = threading.Event()
+    out_queue_not_empty.clear()
+
+    # Response queue - used to pass generated responses from loop to HTTP server
+    resp_msg_template = {}  # TODO: use Ollama's syntax
+    resp: Mapping[int, Dict] = {}  # Will contain the generated message for each sample
+    resp_finished: Mapping[int, threading.Event] = (
+        {}
+    )  # Used to advertise generation end and make server look for message in self.resp
+
+    # Some model configs:
+    top_k = TOP_K
+    temperature = TEMPERATURE
+
+    # Stats - n. tokens/time (tuples)
+    tok_time: List = []
+
+    # Threads
+    inference_thread = threading.Thread()
+    in_queue_thread = threading.Thread()
+    out_queue_thread = threading.Thread()
+
+
+    # NEW: Dual Keys
+    _key_in: Optional[bytes] = None   # Decrypt from Prev
+    _key_out: Optional[bytes] = None  # Encrypt to Next
+
+
+    # --- __INIT__ ---
+    def __init__(
+        self,
+        node_config: Dict,
+        node_type: str,
+        *,
+        model_config: Optional[Config] = None,
+        chunk_path: Optional[FileType] = None,
+        tokenizer_dir: Optional[FileType] = None,
+        model_device: Optional[str] = None,
+        dtype: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        Initialize GPTServer object.
+        """
+        # 1. Handle Verbosity Overrides
+        if "verb" in kwargs:
+            global VERB
+            VERB = bool(kwargs["verb"])
+            if VERB:
+                print(f"Overriding 'verb': {VERB}")
+        
+        self.verb = VERB
+
+        if "plots" in kwargs:
+            global PLOTS
+            PLOTS = bool(kwargs["plots"])
+            if VERB:
+                print(f"Overriding 'plots': {PLOTS}")
+                
+        if "model_type" in kwargs:
+            self.model_type = str(kwargs["model_type"])
+            if VERB:
+                print(f"Overriding model type: {self.model_type}")
+        if "model_seq_length" in kwargs:
+            self.max_seq_length = kwargs["model_seq_length"]
+        else:
+            self.max_seq_length = None
+
+        self.compile = False if "compile" not in kwargs else kwargs["compile"]
+        self.use_default_dtype = dtype is None
+        self.dtype = dtype if dtype else DTYPE  # Default
+        self.ptdtype = DTYPE_TORCH_MAPPING[self.dtype]
+        if not self.use_default_dtype:
+            print(f"Overriding dtype to: {self.dtype}")
+        
+        # bfloat16 check: Only check CUDA support if using CUDA
+        if self.dtype == "bfloat16" and torch.cuda.is_available():
+            if not torch.cuda.is_bf16_supported():
+                raise ValueError("Specified bfloat16, but CUDA does not support this format")
+
+        self.node_type = node_type
+        self.node_config = node_config
+        
+        # ---------------------------------------------------------------------
+        # 2. KEY GENERATION 
+        # ---------------------------------------------------------------------
+        self._ecdh_private_key, self._ecdh_public_key = generate_ecdh_keypair()
+        
+        if self.verb:
+            print("[DEBUG] ECDH private key generated:", self._ecdh_private_key)
+            print("[DEBUG] ECDH public key generated:", self._ecdh_public_key)
+            
+        self._serialize_public_key = serialize_public_key
+        self._deserialize_peer_key = deserialize_public_key
+        self._derive_shared_key = derive_shared_key
+
+        # Init Key storage
+        self._key_in = None
+        self._key_out = None
+        # ---------------------------------------------------------------------
+
+        # Get model_weights from kwargs if provided (for HF direct loading)
+        model_weights = kwargs.pop("model_weights", None)
+
+        if "starter" in node_type:
+            assert chunk_path is not None or model_weights is not None, "Missing path to the model chunk or model weights"
+            assert model_config is not None, "Missing model Config"
+            assert tokenizer_dir is not None, "Missing tokenizer directory"
+            
+            if chunk_path is not None:
+                if isinstance(chunk_path, str):
+                    self.model_path = Path(chunk_path)
+                else:
+                    self.model_path = chunk_path
+            else:
+                self.model_path = None
+
+            if isinstance(tokenizer_dir, str):
+                self.tokenizer_dir = Path(tokenizer_dir)
+            else:
+                self.tokenizer_dir = tokenizer_dir
+
+            if self.model_type is None:
+                try:
+                    self.model_type = self.tokenizer_dir.parent.name
+                except:
+                    self.model_type = None
+
+            if PLOTS and self.model_type is None:
+                raise ValueError("-p flag requires to correctly set the model type")
+            print(f"model_type: {self.model_type}")
+            print(f"tokenizer_dir: {self.tokenizer_dir}")
+            print(f"model_path: {self.model_path}")
+            print(f"chunk_path: {chunk_path}")
+            
+            # The node_config for the starter is the whole json! It should know the
+            # other nodes in the network to initialize them
+            self.role = "starter"
+            self.own_config = node_config["nodes"]["starter"]
+
+            self._select_device(model_device)
+
+            self.n_nodes = 1 + (
+                0
+                if "secondary" not in node_config["nodes"]
+                else len(node_config["nodes"]["secondary"])
+            )
+            self.next_node = (
+                None if self.n_nodes == 1 else node_config["nodes"]["secondary"][0]
+            )
+            self.prev_node = (
+                None if self.n_nodes == 1 else node_config["nodes"]["secondary"][-1]
+            )
+
+            # Extract model params (to cpu)
+            self.model_config = model_config
+            self.n_layers_local = (
+                self.model_config.n_layer
+                if self.n_nodes == 1
+                else N_LAYERS_NODES[self.n_nodes][self.model_config.n_layer][
+                    "N_LAYERS_START"
+                ]
+            )
+            # Load chunk
+            self._init_model(
+                self.n_layers_local,
+                model_path=self.model_path,
+                model_parameters=model_weights,  # Pass weights for HF direct loading
+            )
+
+            # Initialize tokenizer
+            self._load_tokenizer(self.tokenizer_dir)
+
+            # Standalone:
+            if self.n_nodes == 1:
+                self.out_message_queue = self.in_message_queue
+                self.out_queue_not_empty = self.in_queue_not_empty
+        else:
+            # model_config and chunk_path may be absent!
+            self.model_config = model_config  # May be None
+            if isinstance(chunk_path, str):
+                self.model_path = Path(chunk_path)
+            else:
+                self.model_path = chunk_path  # May be None
+
+            # Parse role name to get right node config
+            split_node_type = node_type.split(":")
+            if len(split_node_type) == 1:
+                if len(node_config["nodes"]["secondary"]) > 1:
+                    raise ValueError(
+                        "Need to specify which of the secondary nodes this is"
+                    )
+                elif (
+                    "secondary" in node_config["nodes"]
+                    and len(node_config["nodes"]["secondary"]) == 1
+                ):
+                    self.role = "secondary:0"
+                    secondary_index = 0
+                else:
+                    raise RuntimeError(
+                        "Unable to infer which secondary node this is - please specify "
+                        "the role as 'secondary:n' where 'n' is the index"
+                    )
+            else:
+                secondary_index = int(split_node_type[1])
+                self.role = f"secondary:{secondary_index}"
+
+            # For secondary nodes, `node_config` can also be just the specific node
+            self.own_config = (
+                node_config
+                if "nodes" not in node_config
+                else node_config["nodes"]["secondary"][secondary_index]
+            )
+            self.starter_addr = self.own_config["communication"]["starter_addr"]
+            self._select_device(model_device)
+            # NOTE: the model will be initialized once config info is received (POST)
+
+        # Init own info
+        self.own_addr = self.own_config["addr"]
+        self.own_comm_port = self.own_config["communication"]["port"]
+        self.inference_port_in = self.own_config["inference"]["port_in"]
+        self.inference_port_out = self.own_config["inference"]["port_out"]
+
+        self.start_webserv()
+    # ---------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------
+    def start_webserv(self):
+        """
+        Launch the web server.
+        """
+        self.webserv_config = {
+            "/": {
+                "request.dispatch": cp.dispatch.MethodDispatcher(),
+                "tools.sessions.on": True,
+            }
+        }
+        cp.tree.mount(self, "/", self.webserv_config)
+        cp.config.update(
+            {
+                "server.socket_host": self.own_addr,
+                "server.socket_port": self.own_comm_port,
+                "server.thread_pool": 8,
+                # remove any limit on the request body size; default is 100MB
+                "server.max_request_body_size": 0,
+                # increase server socket timeout to 60s; default is 10s
+                "server.socket_timeout": 10000,
+            }
+        )
+        cp.engine.start()
+
+    def stop_webserv(self):
+        cp.engine.stop()
+        cp.engine.exit()
+
+    # ---------------------------------------------------------------------------------
+    def launch_starter(
+        self, n_samples: int, max_tokens: int, prompt: Optional[str] = None
+    ) -> Tuple[List[str], List[Tuple[int, float]]]:
+        """
+        Launch processing thread in starter node.
+
+        This method should be called once all the nodes in the network have been
+        initialized.
+
+        Args:
+            n_samples: number of produced samples (pieces of text)
+            max_tokens: max. number of tokens per sample
+            prompt: prompt from command line argument (can be prompt itself or FILE:...)
+
+        Returns:
+            generated text samples (list of strings)
+            generation time (total)
+        """
+        if self.role != "starter":
+            raise ValueError(f"Cannot run `launch_starter` for node type {self.role}")
+        metrics_dict = {}
+        self.n_samples = n_samples
+        self.inference_thread = threading.Thread(
+            target=self.start_inference,
+            args=(n_samples,),
+            kwargs={
+                "max_new_tokens": max_tokens,
+                "prompt": prompt,
+                "metrics": metrics_dict,
+            },
+        )
+        # NOTE: the separate thread is just a placeholder to make the interface uniform
+        # for all nodes - here we wait for the processing loop to conclude!
+        self.inference_thread.start()
+        self.inference_thread.join()
+        self.shutdown()
+        return metrics_dict["gen_text"], metrics_dict["gen_time"]
+
+    def start_inference(
+        self,
+        n_samples: int,
+        *,
+        max_new_tokens: Optional[int] = None,
+        prompt: Optional[str] = None,
+        metrics: Optional[Dict] = None,
+    ):
+        """
+        This method is meant to be ran as an independent thread.
+
+        Perform normal operation (open sockets, wait for communication from previous
+        node and forward activations to next one).
+
+        In starter nodes, the function launches the operation by creating sockets to the
+        nodes and initializing the sample vectors.
+        Starter nodes are the only ones for which the arguments should not be None.
+        The loop, for starter nodes, is not infinite, as they should know how many
+        tokens to generate.
+
+        This function launches an infinite loop on a separate thread in secondary
+        nodes, interrupted by the receival of a special message (PUT) over the
+        communication channel that triggers a change in a class attribute.
+        Non-starter nodes do not know how long the generation will take, hence they need
+        to be stopped "externally" by the starter node once the generation is complete.
+
+        Args:
+            n_samples: number of samples to be generated (i.e., independent pieces of
+                text)
+            max_new_tokens (starter only): maximum number of tokens per generated
+                sample
+            prompt (starter only): string containing the prompt or "FILE:<filename.txt>"
+            metrics (starter only): dict where the metrics will be inserted (keys:
+                "gen_text" and "gen_time")
+        """
+        assert self.model_config is not None and self.model is not None
+
+        if self.conn_to_next:
+            self.conn_to_next.shutdown()
+            self.conn_to_next = None
+        if self.conn_to_prev:
+            self.conn_to_prev.shutdown()
+            self.conn_to_prev = None
+
+        # Configuration for all nodes
+        self._create_sockets()
+
+        # Differentiate between different types
+        if self.node_type == "starter":
+            assert max_new_tokens is not None
+
+            self.n_samples = n_samples
+            self.running.set()
+            self._launch_queue_threads()
+
+            if VERB:
+                print(
+                    f"[INFO] Starting generation loop - {n_samples} samples, {max_new_tokens} tokens each"
+                )
+            logger_wp.info("Starting generation loop")
+
+            out_text, gen_time = self._starter_loop(
+                n_samples, prompt, max_new_tokens=max_new_tokens
+            )
+
+            if metrics is not None:
+                # NOTE: this allows to return values even if this method is on a
+                # separate thread! Just read from this object after `join`
+                metrics["gen_text"] = out_text
+                metrics["gen_time"] = gen_time
+        else:
+            assert self.next_node is not None and self.prev_node is not None
+            # Secondary node
+            self.running.set()
+            self._launch_queue_threads()
+            if VERB:
+                print("[INFO] Starting generation loop")
+            logger_wp.info("Starting generation loop")
+            self._secondary_loop()
+
+    def stop_generation(self) -> int:
+        try:
+            time.sleep(2)
+            self.running.clear()  # Redundant, but ok
+            if "starter" not in self.role:
+                if VERB:
+                    print("Stopping main thread")
+                self.inference_thread.join()
+            if self.n_nodes > 1 and self.conn_to_prev and self.conn_to_next:
+                if VERB:
+                    print("Stopping input queue thread")
+                self.conn_to_prev.shutdown()
+                if VERB:
+                    print("Stopping output queue thread")
+                self.conn_to_next.shutdown()
+            return 1
+        except:
+            return 0
+
+    def shutdown(self) -> int:
+        """
+        Turn off the node - stop server, close sockets and stop thread.
+
+        Returns:
+            1 upon success, 0 otherwise (exception gets raised)
+        """
+        if VERB:
+            print("[INFO] Shutting down")
+
+        try:
+            assert self.stop_generation()
+            if VERB:
+                print("Stopping HTTP server")
+            self.stop_webserv()
+            if VERB:
+                print("Closing application")
+            return 1
+        except:
+            return 0
+
+    # ----- Inference message transmission --------------------------------------------
+    def _launch_queue_threads(self):
+        """
+        Launch the input and output queue threads;
+        This method is called by `start_inference()`.
+
+        Note: for standalone (single node) operation, the connections are not created,
+        and therefore no threads are launched.
+        """
+        start_only = self.node_type == "starter" and (
+            not self.conn_to_prev and not self.conn_to_next
+        )
+        assert start_only == (
+            self.n_nodes == 1
+        ), "Not running in standalone mode, but missing connections"
+
+        if not start_only:
+            assert self.conn_to_next and self.conn_to_prev
+            if VERB:
+                print("[INFO] Starting queue threads")
+
+            self.conn_to_prev.launch()
+            self.conn_to_next.launch()
+
+    def _create_sockets(self):
+        """
+        Create sockets for communicating the intermediate results with the previous and
+        next nodes in the chain.
+
+        Starter nodes will open the connection towards the next node first, while all
+        other nodes will first connect to the previous ones (otherwise the application
+        would just wait indefinitely, as no node will connect with any other).
+        """
+        assert self.conn_to_prev is None and self.conn_to_next is None
+
+        if self.node_type != "starter" and (not self.prev_node or not self.next_node):
+            raise RuntimeError("Missing neighboring node info!")
+
+        if self.node_type == "starter":
+            # Only create socket if NOT in standalone mode
+            if self.next_node is not None and self.n_nodes != 1:
+                self.conn_to_next = OutputNodeConnection(
+                    self.own_config,
+                    next_node=self.next_node,
+                    queue=self.out_message_queue,
+                    event_callback=self.out_queue_not_empty,
+                    verb=VERB,
+                )
+        else:
+            assert self.next_node is not None and self.prev_node is not None
+
+        if self.prev_node is not None:
+            self.conn_to_prev = InputNodeConnection(
+                self.own_config,
+                prev_node=self.prev_node,
+                queue=self.in_message_queue,
+                event_callback=self.in_queue_not_empty,
+                verb=VERB,
+            )
+
+        if self.node_type != "starter":
+            self.conn_to_next = OutputNodeConnection(
+                self.own_config,
+                next_node=self.next_node,
+                queue=self.out_message_queue,
+                event_callback=self.out_queue_not_empty,
+                verb=VERB,
+            )
+
+    def _build_msg(self, data: Any, sample_index: int, stop: bool = False, tokens: Any = None) -> Dict:
+        """
+        Build the message which is transmitted to the next node.
+
+        Args:
+            data: the activations to be transmitted
+            sample_index: index of the current sample (allows to check)
+            stop: whether this is a stop message
+            tokens: optional token sequence for debugging/decoding
+
+        Returns:
+            the message - a Python dict with the fields "sample_index" and
+            "data"
+        """
+        # HYBRID SETUP FIX: Ensure all tensors are moved to CPU before transmission.
+        # This prevents "Device Mismatch" errors (e.g. sending MPS tensor to CUDA machine).
+        if isinstance(data, torch.Tensor):
+            data = data.cpu()
+        
+        if isinstance(tokens, torch.Tensor):
+            tokens = tokens.cpu()
+
+        msg = {"sample_index": sample_index, "data": data, "stop": stop}
+        if tokens is not None:
+            msg["tokens"] = tokens
+        return msg
+
+    # ----- Private -------------------------------------------------------------------
+
+    def _select_device(self, device):
+        """
+        Select the torch device to be used to load and process the model.
+        Priority (high to low):
+            1. Command line arg (`--device`)
+            2. Config file
+            3. Default device
+        """
+        # Possibly get device info if found in config file
+        try:
+            self.model_device = device if device else self.own_config["device"]
+        except KeyError:
+            warnings.warn(f"Using default device {DEFAULT_DEVICE}")
+            self.model_device = DEFAULT_DEVICE
+        self.torch_model_device = torch.device(self.model_device)
+        if VERB:
+            print(f"Using device: {self.model_device}")
+
+    def _init_model(
+        self,
+        n_transf_layers: int,
+        *,
+        model_path: Optional[Path] = None,
+        model_parameters: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Initialize the node's model chunk and move it to the target device
+        (self.model_device).
+
+        Args:
+            model_parameters: state dict containing the weights - will be emptied
+            n_transf_layers: number of transformer layers of the local model; required
+                for initializing the submodel.
+            *
+            model_path: if present, it is the path in the local file system where
+                the model chunk is found
+            model_parameters: alternatively, the model parameters may already be present in
+                memory (e.g., loaded previously or received by starter node)
+        """
+        assert self.model_config is not None, "No model configuration was found!"
+        assert self.model is None, "The model was already initialized!"
+        assert self.model_device is not None, "No device was specified"
+
+        if not (model_path or model_parameters):
+            raise ValueError(
+                "At least one between model_path and model_parameters must be nonempty"
+            )
+
+        # TODO:
+        # 1. load empty model
+        # 2. load weights from disk
+        # 3. if the dtype was overridden, cast weights
+        # 4. load parameters to model
+        if VERB:
+            print("Initializing empty local model")
+
+        #madina
+        # Model_class = StarterNode if "starter" in self.node_type else SecondaryNode
+        if "starter" in self.node_type:
+            Model_class = StarterNode
+        else:
+            # Check if this is the last secondary node
+            # self.n_nodes is total nodes (e.g., 3)
+            # self.role is "secondary:index" (e.g., "secondary:1")
+
+            secondary_index = int(self.role.split(":")[-1])
+
+            # Total nodes = 3. Last secondary index = 1. (n_nodes - 2)
+            finisher_index = self.n_nodes - 2
+
+            if secondary_index == finisher_index:
+                Model_class = FinisherNode
+                if self.verb:
+                    print("[INFO] Initializing as FinisherNode")
+            else:
+                Model_class = SecondaryNode
+                if self.verb:
+                    print(f"[INFO] Initializing as SecondaryNode {secondary_index}")
+                    
+        try:
+            self.model = Model_class(self.model_config, n_transf_layers).to_empty(
+                device=self.model_device
+            )
+        except:
+            with accelerate.init_empty_weights():
+                self.model = Model_class(self.model_config, n_transf_layers).to("meta")
+
+        if VERB:
+            print("Loading parameters")
+            print(f"Using dtype {self.ptdtype}")
+
+        # TODO: switch to "empty" models (torch >= 2.0)
+        if model_path:
+            # NOTE: using accelerate to prevent memory usage spike at the beginning
+            # resulting from the need to load both the "empty" model and the weights
+            if VERB:
+                print(f"[INFO] Loading checkpoint directly to {self.model_device}...")
+            
+            self.model = accelerate.load_checkpoint_and_dispatch(
+                self.model, 
+                str(model_path), 
+                dtype=self.ptdtype,
+                device_map={"": self.model_device} # Optimization: Force load to target device
+            )
+        else:
+            # NOTE: if here, cannot use accelerate! Weights are already in memory...
+            model_parameters = {
+                k: v.to(self.ptdtype) for k, v in model_parameters.items()
+            }
+            self.model.load_weights(model_parameters)
+            self.model = self.model.to(self.ptdtype)
+
+        if self.max_seq_length:
+            print(f"[DEBUG] Truncating context length to {self.max_seq_length}")
+            self.model.max_seq_length = self.max_seq_length
+        else:
+            # Use default value
+            self.model.max_seq_length = self.model.max_seq_length # Fix: ensure attribute exists
+
+        # Optimization: Model is already on device if loaded via accelerate with device_map
+        if not model_path:
+            if VERB:
+                print(f"Moving model to {self.torch_model_device}")
+            self.model = self.model.to(self.torch_model_device)
+        
+        # Enable embedding debug output for starter nodes
+        if self.node_type == "starter" and VERB:
+            self.model._debug_embeddings = True
+
+        if self.compile and hasattr(torch, "compile"):
+            print("[WARNING] torch.compile is ENABLED. This will significantly slow down initialization.")
+            if VERB:
+                print("Compiling local model - this may take a while", end="\r")
+            try:
+                self.model = torch.compile(self.model)
+                if VERB:
+                    print("Model compiled!                                ")
+            except RuntimeError as e:
+                warnings.warn(f"Unable to compile model! {e}")
+        elif self.compile and not hasattr(torch, "compile"):
+            from importlib.metadata import version
+
+            warnings.warn(
+                f"Installed torch version ({version('torch')}) does not support compiling models"
+            )
+
+        del model_parameters
+        model_parameters = None
+        gc.collect()
+
+    def _load_tokenizer(self, tokenizer_dir: FileType):
+        """
+        Load the tokenizer information and prompt style definition from the specified
+        path.
+        The tokenizer object will be stored in `self.tok`, while the prompt style will
+        be stored in `self.prompt_style`.
+
+        Args:
+            tokenizer_dir: path to the directory containing the tokenizer config files
+        Returns:
+            True if the operation was successful
+        """
+        if VERB:
+            print("Loading tokenizer", end="")
+        # FIXME: this is just to give priority to HF; some tokenizer_config.json files (Llama 2) are broken...
+        try:
+            self.tok = Tokenizer(tokenizer_dir, force_backend="huggingface")
+        except:
+            self.tok = Tokenizer(tokenizer_dir)
+        tok_dir_path = (
+            Path(tokenizer_dir) if isinstance(tokenizer_dir, str) else tokenizer_dir
+        )
+        if not has_prompt_style(tok_dir_path):
+            assert self.model_config is not None
+            self.prompt_style = PromptStyle.from_config(self.model_config)
+        else:
+            self.prompt_style = load_prompt_style(tok_dir_path)
+
+        if VERB:
+            print(f"Prompt style: {type(self.prompt_style)}")
+
+        self.stop_tokens = self.prompt_style.stop_tokens(self.tok)
+            
+        if VERB:
+            print(f"Stop tokens: {self.stop_tokens}")
+            print("Tokenizer and prompt style have been loaded!")
+
+    def _init_sample_caches(self, id, idx):
+        """
+        Initialize the model cache for the new sample `idx` with ID: `id`, using a
+        specified dtype.
+
+        Args:
+            id: sample ID
+            idx: new sample (encoded prompt)
+            dtype: desired dtype for the KV caches
+
+        Returns:
+            Cache length (T_i)
+            Input position tensor (input_pos)
+            KV cache for the sumbodel (kvcaches)
+        """
+        assert self.model is not None
+
+        self.T_i[id] = idx.size(1)
+        self.input_pos[id] = torch.arange(
+            0, self.T_i[id], device=self.torch_model_device
+        )
+        kvc_sublist: List[KVCache] = []
+        for _, block in enumerate(self.model.transformer.h):
+            # Build kv cache individually for each attn layer
+            kvc_sublist.append(
+                block.attn.build_kv_cache(
+                    batch_size=1,
+                    max_seq_length=self.model.max_seq_length,
+                    rope_cache_length=self.model.cos.size(-1),
+                    device=self.torch_model_device,
+                    dtype=self.ptdtype,
+                )
+            )
+        self.kvcaches[id] = kvc_sublist
+
+    # ---- Main Loops -----------------------------------------------------------------
+
+    def _starter_loop(
+        self, n_samples: int, prompt: Optional[str] = None, **kwargs
+    ) -> Tuple[List[str], List[Tuple[int, float]]]:
+        """
+        Generation loop for the starter node only.
+
+        Args:
+            n_samples: number of produced samples
+            prompt: either the prompt itself or a string of the type "FILE:<prompt.txt>"
+                containing each prompt as a separate paragraph
+
+        Returns:
+            list containing the `n_nodes` generated samples
+            total generation time in seconds
+        """
+        assert self.model_config is not None and self.model is not None
+        assert self.model_device is not None
+
+        #
+        # TODO
+        # Starter loop should become agnostic of n_samples (it will work on-demand
+        #
+        # The prompt will need to be processed "outside", e.g., by the POST
+        #
+        # Will probably be able to "unify" this part of code before the actual loop for
+        # both types of nodes - then _starter_loop and _secondary_loop could be
+        # streamlined to just contain what's inside the "while"
+        #
+        if n_samples < 1:
+            raise ValueError("Cannot generate less than 1 sample!")
+        elif n_samples < self.n_nodes:
+            warnings.warn(
+                f"Generating less samples ({n_samples}) than nodes ({self.n_nodes}) will not be efficient!"
+            )
+        self.n_samples = n_samples
+
+        if "cuda" in self.model_device:
+            device_type = "cuda"
+        elif "mps" in self.model_device:
+            device_type = "mps"
+        else:
+            device_type = "cpu"
+        # Disable autocast on CPU and MPS entirely to avoid warnings
+        if device_type in ["cpu", "mps"]:
+            ctx = nullcontext()  # Manual dtype management, no autocast
+        else:
+            ctx = torch.amp.autocast(device_type=device_type, dtype=self.ptdtype)
+
+        # <<<< TODO: replace - analogous operations to be executed in POST from user
+        # The POST should
+        # Encode starting sequence - with prompt support
+        if prompt is None:
+            start = ["\n"] * n_samples
+            start_styled = [self.prompt_style.apply(s) for s in start]
+        else:
+            start_styled = get_user_prompt(
+                prompt, n_samples, prompt_style=self.prompt_style
+            )
+
+        assert len(start_styled) == n_samples
+
+        idx = [
+            self.tok.encode(txt, device=self.torch_model_device).view(1, -1)
+            for txt in start_styled
+        ]
+        # >>>>
+
+        # Initialize RoPE cache and attention mask
+        self.model.init_rope_mask(device=self.torch_model_device)
+        self.model.eval()
+
+        # Starter Only
+        self.samples: Dict[int, torch.Tensor] = {}
+        self.prompt_lengths: Dict[int, int] = {}
+
+        # >>>> TODO: remove - will be done in POST
+        for i, samp in enumerate(idx):
+            self.in_message_queue.append(self._build_msg(samp, i))
+            self.prompt_lengths[i] = len(samp.squeeze())  # Length in tokens
+            self.iter_ind[i] = 0
+        self.in_queue_not_empty.set()
+
+        if "max_new_tokens" in kwargs:
+            # NOTE: can override the max. n. of tokens - must ensure
+            self.max_new_tokens = {
+                i: kwargs["max_new_tokens"] for i in range(len(self.prompt_lengths))
+            }
+            # Check max_new_tokens won't cause errors later
+            if not all(
+                [
+                    self.max_new_tokens[i] + self.prompt_lengths[i]
+                    <= self.model.max_seq_length
+                    for i in range(n_samples)
+                ]
+            ):
+                raise ValueError(
+                    f"Cannot generate {kwargs['max_new_tokens']} tokens - would exceed block size!"
+                )
+        else:
+            # The maximum number of tokens is the model's sequence length - prompt length
+            self.max_new_tokens = {
+                i: (self.model.max_seq_length - p_l)
+                for i, p_l in self.prompt_lengths.items()
+            }
+            assert all(
+                max_tok > 0 for max_tok in self.max_new_tokens.values()
+            ), "Some prompt is longer than the context length of the model"
+        # <<<<
+
+        event_stop = threading.Event()
+        loading_thread = threading.Thread(
+            target=waiting_animation, args=("Processing samples", event_stop)
+        )
+
+        start_time = time.time()
+        n_tokens = 0
+        if PLOTS:
+            self.tok_time.append((0, 0))
+
+        print("[INFO] Launching processing loop")
+        loading_thread.start()
+        with torch.inference_mode(), ctx, catch_loop_errors(
+            running_event=self.running, event_to_be_set=[event_stop]
+        ):
+            while self.running.is_set():
+                # Wait for queue to contain msg -- timeout allows to handle shutdown
+                if self.in_queue_not_empty.wait(timeout=2):
+                    in_msg = self.in_message_queue.popleft()
+                    if len(self.in_message_queue) < 1:
+                        self.in_queue_not_empty.clear()
+
+                    if in_msg["stop"]:
+                        # The stopping message made the whole loop
+                        self.running.clear()  # TODO: remove
+                    else:
+                        sample_id = in_msg["sample_index"]
+                        # --- FIX 1: Decrypt using _key_in (from Last Node) ---
+                        data = in_msg["data"]
+                        if isinstance(data, dict) and 'ciphertext' in data:
+                            idx = aes_decrypt_tensor_quantized(
+                                data["ciphertext"], data["nonce"], data["tag"], 
+                                data["shape"], getattr(torch, data["dtype"]), 
+                                self._key_in, # <--- USE KEY_IN HERE
+                                device=self.torch_model_device
+                            )
+                        else:
+                            idx = data.to(self.torch_model_device)
+                            
+                        stopping_detected = False
+
+                        # DEBUG: Show what starter received back from secondary
+                        if VERB:
+                            print(f"\n{'='*80}")
+                            print(f"[STARTER RECEIVED] Sample {sample_id}, about to process Iter {self.iter_ind[sample_id]}")
+                            print(f"  Received data shape: {idx.shape}")
+                            print(f"  Received data dtype: {idx.dtype}")
+                            print(f"  Received data device: {idx.device}")
+                            
+                            # Check if this is token IDs (integers) or activations (floats)
+                            if idx.dtype in [torch.int32, torch.int64, torch.long]:
+                                # Token IDs - show the actual tokens
+                                print(f"  Data type: TOKEN IDs")
+                                print(f"  Token IDs: {idx.squeeze().tolist()}")
+                                if hasattr(self, 'tok') and self.tok is not None:
+                                    decoded_text = self.tok.decode(idx.squeeze())
+                                    print(f"  Decoded text: {decoded_text}")
+                            else:
+                                # Activations - show statistics
+                                print(f"  Data type: ACTIVATIONS (hidden states)")
+                                print(f"  Activation stats: min={idx.min().item():.4f}, max={idx.max().item():.4f}, mean={idx.mean().item():.4f}")
+                                print(f"  First 5 values of first element: {idx[0, 0, :5].tolist()}")
+                                if "tokens" in in_msg and hasattr(self, 'tok') and self.tok is not None:
+                                    tokens = in_msg["tokens"]
+                                    decoded_text = self.tok.decode(tokens.squeeze())
+                                    print(f"  Current token sequence: {decoded_text}")
+                            print(f"{'='*80}\n")
+
+                        # # Keep variable iter_ind[i] for each sample i
+                        # if self.iter_ind[sample_id] >= 1:
+                        #     # print("OUTPUT")
+                        #     # We are not in the first iteration for this sample
+                        #     # --> Can start processing messages from last secondary node
+                        #     logits = self.model(idx, first_pass=False)
+                        # Keep variable iter_ind[i] for each sample i
+                        #madina
+                        if self.iter_ind[sample_id] >= 1:
+                            # print("OUTPUT")
+                            # We are not in the first iteration for this sample
+                            # --> Can start processing messages from last secondary node
+                            
+                            # DEBUG: Check n_nodes before branching
+                            print(f"[DEBUG BRANCH] n_nodes = {self.n_nodes}, checking if n_nodes == 1: {self.n_nodes == 1}")
+                            
+                            if self.n_nodes == 1:
+                                # STANDALONE MODE: idx is activations, need to compute logits and sample
+                                print(f"[DEBUG] Entering STANDALONE branch - computing logits from activations")
+                                logits = self.model(idx, first_pass=False)
+                                
+                                # DEBUG: Show logits and sampling
+                                if VERB:
+                                    print(f"[STANDALONE SAMPLING] Sample {sample_id}")
+                                    print(f"  Logits shape: {logits.shape}")
+                                    print(f"  Logits stats: min={logits.min().item():.4f}, max={logits.max().item():.4f}")
+                                
+                                idx_next = sample(
+                                    logits,
+                                    temperature=self.temperature,
+                                    top_k=self.top_k,
+                                )
+                                idx_next = idx_next.view(1, -1)
+                                
+                                # DEBUG: Show sampled token
+                                if VERB and hasattr(self, 'tok') and self.tok is not None:
+                                    sampled_token = self.tok.decode(idx_next.squeeze())
+                                    print(f"  Sampled token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
+                            else:
+                                # DISTRIBUTED MODE: idx is already the token ID from finisher node
+                                idx_next = idx.view(1, -1)
+                                
+                                # DEBUG: Show the token we received
+                                if VERB and hasattr(self, 'tok') and self.tok is not None:
+                                    sampled_token = self.tok.decode(idx_next.squeeze())
+                                    print(f"  Received Token ID: {idx_next.item()}, Token: '{sampled_token}'\n")
+
+                            self.samples[sample_id] = torch.cat(
+                                (self.samples[sample_id], idx_next), dim=1
+                            )
+                            # Detect stopping token sequence and possibly interrupt gen for current sample
+                            stopping_detected = detect_stop_tokens(
+                                self.samples[sample_id], self.stop_tokens
+                            )
+                            
+                            # Also check for complete answer (sentence limit / repetition)
+                            if not stopping_detected and hasattr(self, 'tok'):
+                                generated_text = self.tok.decode(
+                                    self.samples[sample_id][:, self.prompt_lengths[sample_id]:]
+                                )
+                                if detect_complete_answer(generated_text, max_sentences=100):
+                                    stopping_detected = True
+                                    # if VERB:
+                                    #     print(f"[STOP DETECTED] Sample {sample_id} - Complete answer detected")
+                            
+                            if stopping_detected:
+                                print(f"[STOP DETECTED] Sample {sample_id} - EOT token found, stopping generation")
+                            
+                            # Update input pos (will be used in next pass)
+                            self.input_pos[sample_id] = self.input_pos[sample_id][
+                                -1:
+                            ].add_(1)
+
+                            # Only add new token after it has been generated
+                            n_tokens += 1
+                            if PLOTS:
+                                self.tok_time.append(
+                                    (n_tokens, time.time() - start_time)
+                                )
+
+                        else:
+                            # First iteration for the current sample!
+                            # Begin list of samples
+                            self.samples[sample_id] = idx.view(1, -1)
+                            # First iter for this sample, init KV cache!
+                            self._init_sample_caches(sample_id, self.samples[sample_id])
+
+                        # Send to next iff not at the last token AND no stop token detected
+                        if self.iter_ind[sample_id] < self.max_new_tokens[sample_id] and not stopping_detected:
+                            # Only propagate last token (KV cache) - OR all initial prompt if
+                            # 1st iter
+                            idx_cond = (
+                                self.samples[sample_id]
+                                if self.iter_ind[sample_id] == 0
+                                else self.samples[sample_id][:, -1].view(1, -1)
+                            )
+
+                            # NOTE: Swap KVCache for correct sample
+                            curr_kvcache = self.kvcaches[sample_id]
+                            for ind_b, block in enumerate(self.model.transformer.h):
+                                block.attn.kv_cache = curr_kvcache[ind_b]
+
+                            # Forward in local model (first piece)
+                            idx_cond = self.model(idx_cond, self.input_pos[sample_id])
+                            # CRITICAL: Ensure output stays in model's dtype (float16)
+                            if idx_cond.dtype != self.ptdtype:
+                                idx_cond = idx_cond.to(dtype=self.ptdtype)
+
+                            # ENCRYPT with ECDH-derived key
+                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(idx_cond, self._key_out)
+                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(
+                                idx_cond, self._key_out # <--- KEY_OUT HERE
+                            )
+                            # === LOG Encrypted garbage value ===
+                            if self.verb:
+                                # Print the first 64 characters (32 bytes) of the ciphertext in Hex
+                                print(f"  [DEBUG CIPHERTEXT] {ciphertext[:32].hex()}...") 
+                            # ================
+                            encrypted_payload = {
+                                'ciphertext': ciphertext,
+                                'nonce': nonce,
+                                'tag': tag,
+                                'shape': shape,
+                                'dtype': dtype_name
+                            }
+
+                            # DEBUG: Show data being sent from starter
+                            if VERB:
+                                print(f"\n{'='*80}")
+                                print(f"[STARTER SENDING ENCRYPTED] Sample {sample_id}, Iter {self.iter_ind[sample_id]}")
+                                print(f"  Encrypted data length: {len(ciphertext)}")
+                                print(f"  Nonce: {nonce.hex()}")
+                                print(f"  Tag: {tag.hex()}")
+                                print(f"  Shape: {shape}, Dtype: {dtype_name}")
+                                print(f"{'='*80}\n")
+
+                            # Send message (include tokens for secondary node to decode)
+                            out_msg = self._build_msg(encrypted_payload, sample_id, tokens=self.samples[sample_id])
+                        else:
+                            # Generation finished
+                            print(f"[DEBUG] Finished sample {sample_id}")
+                            # TODO: decode and place msg in self.resp
+                            # Also set resp_queue_not_empty to advertise sample
+
+                            # Transmit msg with 'stop': true for this sample ID
+                            out_msg = self._build_msg(
+                                data="", sample_index=sample_id, stop=True
+                            )
+
+                        # UPDATE ITERATION COUNT FOR SAMPLE
+                        self.iter_ind[sample_id] += 1
+
+                        # NOTE: message queues will be the same if running in standalone!
+                        self.out_message_queue.append(out_msg)
+                        self.out_queue_not_empty.set()
+
+        if VERB:
+            print("[INFO] Generation completed!")
+        logger_wp.info("Generation completed")
+
+        out_truncated = [
+            find_eot(smp, self.stop_tokens, self.prompt_lengths[i])
+            for i, smp in self.samples.items()
+        ]
+        if VERB:
+            print("Truncated samples:")
+            for i, smp in enumerate(out_truncated):
+                print(
+                    f"- Sample {i} truncated to {len(smp.squeeze())}/{len(self.samples[i].squeeze())}"
+                )
+        out_samples = [self.tok.decode(smp) for smp in out_truncated]
+        
+        # Truncate to complete sentences (remove partial sentences at the end)
+        # out_samples = [truncate_to_complete_answer(smp, max_sentences=3) for smp in out_samples]
+        
+        print(f"Out samples in starter loop: {out_samples}")
+        return out_samples, self.tok_time
+
+    def _secondary_loop(self):
+        """
+        Execution loop for non-starter nodes. This method must be used as the target of
+        a thread that is launched once the node has been correctly initialized.
+
+        The execution will be stopped once a PUT request is made to /stop.
+        """
+        assert self.conn_to_prev is not None and self.conn_to_next is not None
+        assert self.model is not None and self.model_config is not None
+        assert self.n_samples is not None
+        assert self.model_device is not None
+
+        # Should be overrided by kwargs
+        if "cuda" in self.model_device:
+            device_type = "cuda"
+        elif "mps" in self.model_device:
+            device_type = "mps"
+        else:
+            device_type = "cpu"
+        # Disable autocast on CPU and MPS entirely to avoid warnings
+        if device_type in ["cpu", "mps"]:
+            ctx = nullcontext()  # Manual dtype management, no autocast
+        else:
+            ctx = torch.amp.autocast(device_type=device_type, dtype=self.ptdtype)
+
+        # Allow node to be 100% agnostic of the system! If it receives a sample with a
+        # new ID, it will initialize the caches for that sample on the fly!
+        self.model.init_rope_mask(device=self.torch_model_device)
+        self.model.eval()
+
+        event_stop = threading.Event()
+        loading_thread = threading.Thread(
+            target=waiting_animation, args=("Processing samples", event_stop)
+        )
+        iter = 0
+        first_glob_iter = True  # True for the first n_samples iters
+
+        print("[INFO] Launching processing loop")
+        loading_thread.start()
+        with ctx, torch.inference_mode(), catch_loop_errors(
+            running_event=self.running, event_to_be_set=[event_stop]
+        ):
+            while self.running.is_set():
+                if self.in_queue_not_empty.wait(timeout=2):
+                    # Extract message from queue
+                    in_msg = self.in_message_queue.popleft()
+                    if len(self.in_message_queue) <= 0:
+                        self.in_queue_not_empty.clear()
+
+                    sample_id = in_msg["sample_index"]
+
+                    if "stop" in in_msg and in_msg["stop"]:
+                        print(f"[DEBUG] Finished sample {sample_id}")
+                        # TODO: delete variables for sample id
+
+                        self.out_message_queue.append(in_msg)
+                        self.out_queue_not_empty.set()
+                    else:
+                        if iter >= self.n_samples:
+                            first_glob_iter = False
+                        # 1. DECRYPT (using Key IN)
+                        data = in_msg["data"]
+                        if isinstance(data, dict) and 'ciphertext' in data:
+                            idx = aes_decrypt_tensor_quantized(
+                                data["ciphertext"], data["nonce"], data["tag"], 
+                                data["shape"], getattr(torch, data["dtype"]), 
+                                self._key_in,  # <--- KEY IN
+                                device=self.torch_model_device
+                            )
+                        else:
+                            idx = data.to(device=self.torch_model_device, dtype=self.ptdtype)
+
+                        # DEBUG: Show what secondary node received
+                        if VERB:
+                            print(f"\n{'='*80}")
+                            print(f"[SECONDARY {self.role} RECEIVED] Sample {sample_id}")
+                            print(f"  Received data shape: {idx.shape}")
+                            print(f"  Received data dtype: {idx.dtype}")
+                            print(f"  Received data device: {idx.device}")
+                            
+                            # Check if this is token IDs (integers) or activations (floats)
+                            if idx.dtype in [torch.int32, torch.int64, torch.long]:
+                                # Token IDs - show the actual tokens
+                                print(f"  Data type: TOKEN IDs")
+                                print(f"  Token IDs: {idx.squeeze().tolist()}")
+                                if hasattr(self, 'tok') and self.tok is not None:
+                                    decoded_text = self.tok.decode(idx.squeeze())
+                                    print(f"  Decoded text: {decoded_text}")
+                            else:
+                                # Activations - show statistics
+                                print(f"  Data type: ACTIVATIONS (hidden states)")
+                                print(f"  Activation stats: min={idx.min().item():.4f}, max={idx.max().item():.4f}, mean={idx.mean().item():.4f}")
+                                print(f"  First 5 values of first element: {idx[0, 0, :5].tolist()}")
+                            
+                            # Decode tokens if present in message and tokenizer is available
+                            if "tokens" in in_msg and hasattr(self, 'tok') and self.tok is not None:
+                                tokens = in_msg["tokens"]
+                                decoded_text = self.tok.decode(tokens.squeeze())
+                                print(f"  Current token sequence: {decoded_text}")
+                            print(f"{'='*80}\n")
+                        # if sample_id not in self.T_i:
+                        #     assert (
+                        #         first_glob_iter
+                        #     ), "Should have seen this sample already..."
+                        #     # Initialization of the input_pos
+                        #     self._init_sample_caches(sample_id, idx)
+                        
+                        # AUTO-RESET: If input is a Prompt (len > 1), RESET the cache.
+                        # This fixes the issue where old caches persist between runs.
+                        if idx.shape[1] > 1:
+                            if VERB: print(f"[CACHE RESET] New prompt detected (len={idx.shape[1]}). resetting cache for sample {sample_id}.")
+                            self._init_sample_caches(sample_id, idx)
+                        elif sample_id not in self.T_i:
+                            # Fallback if we missed the prompt (shouldn't happen in correct ring)
+                            self._init_sample_caches(sample_id, idx)
+
+                        # Swap KVCache
+                        curr_kvcache = self.kvcaches[sample_id]
+                        for ind_b, block in enumerate(self.model.transformer.h):
+                            block.attn.kv_cache = curr_kvcache[ind_b]
+                        
+                        if VERB:
+                            print(f"[DEBUG CACHE] Sample {sample_id} | Iter {iter} | Input Pos: {self.input_pos[sample_id]}")
+                        
+                        # 2. FORWARD
+                        outs = self.model(idx, input_pos=self.input_pos[sample_id])
+
+                        # 3. PROCESS OUTPUT (Sample if finisher or Encrypt if hidden layer)
+                        if isinstance(self.model, FinisherNode):
+                             # === FINISHER LOGIC (Sampling) ===
+                             # 'outs' is currently logits [1, 1, vocab_size]
+                             idx_next = sample(outs, temperature=self.temperature, top_k=self.top_k, vocab_size=self.model_config.vocab_size)
+                             
+                             # [LOGGING]
+                             import datetime
+                             current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                             print(f"\n[FINISHER LOG] Token generated at {current_time}")
+                             print(f"[FINISHER LOG] Token ID: {idx_next.item()}\n")
+                             
+                             # Track samples
+                             if not hasattr(self, 'samples'): self.samples = {}
+                             
+                             if "tokens" in in_msg:
+                                 self.samples[sample_id] = torch.cat((in_msg["tokens"].to(self.torch_model_device), idx_next.view(1, -1)), dim=1)
+                             elif sample_id in self.samples:
+                                 self.samples[sample_id] = torch.cat((self.samples[sample_id], idx_next.view(1, -1)), dim=1)
+                             else:
+                                 self.samples[sample_id] = idx_next.view(1, -1)
+                             
+                             # Stop Token Detection
+                             stopping_detected = False
+                             if hasattr(self, 'stop_tokens') and self.stop_tokens:
+                                 stopping_detected = detect_stop_tokens(self.samples[sample_id], self.stop_tokens)
+                             
+                             if VERB:
+                                 print(f"  Sampled token ID: {idx_next.item()}")
+                                 if hasattr(self, 'tok') and self.tok is not None:
+                                     sampled_token = self.tok.decode(idx_next.squeeze())
+                                     print(f"  Sampled token text: '{sampled_token}'")
+                                 if stopping_detected: print(f"  >>> STOP TOKEN DETECTED! <<<")
+                                 print(f"{'='*80}\n")
+                             
+                             # Handle Stop
+                             if stopping_detected:
+                                 if VERB: print(f"[DEBUG] Finisher detected stop token for sample {sample_id}, sending stop signal")
+                                 out_msg = self._build_msg(data="", sample_index=sample_id, stop=True)
+                                 self.out_message_queue.append(out_msg)
+                                 self.out_queue_not_empty.set()
+                                 self.input_pos[sample_id] = self.input_pos[sample_id][-1:].add_(1)
+                                 iter += 1
+                                 continue  # Skip sending the normal token
+                             
+                             # Prepare Output (Integer Token ID)
+                             outs_to_send = idx_next
+                             outs = idx_next # Update var for debug print below
+
+                        else:
+                            # === HIDDEN LAYER LOGIC (Encryption) ===
+                            # 1. Ensure correct dtype
+                            if outs.dtype != self.ptdtype:
+                                outs = outs.to(dtype=self.ptdtype)
+                            
+                            # 2. Encrypt using KEY_OUT
+                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(
+                                outs, self._key_out 
+                            )
+                            
+                            if self.verb:
+                                print(f"  [DEBUG CIPHERTEXT] {ciphertext[:32].hex()}...") 
+                            
+                            # 3. Prepare Output (Encrypted Dict)
+                            outs_to_send = { 
+                                'ciphertext': ciphertext, 'nonce': nonce, 'tag': tag, 
+                                'shape': shape, 'dtype': dtype_name 
+                            }
+
+                        # DEBUG: Show what secondary node is sending (Common for both)
+                        if VERB:
+                            print(f"\n{'='*80}")
+                            print(f"[SECONDARY {self.role} SENDING] Sample {sample_id}")
+                            if outs.dtype in [torch.int64, torch.int32, torch.long]:
+                                print(f"  [SUCCESS] Sending Generated Token ID: {outs.item()}")
+                            else:
+                                print(f"  Output activation shape: {outs.shape}")
+                                print(f"  First 5 values: {outs[0, 0, :5].tolist()}")
+                            print(f"{'='*80}\n")
+
+
+
+                        # Build msg (pass along tokens if present)
+                        tokens_to_send = in_msg.get("tokens", None)
+                        out_msg = self._build_msg(outs_to_send, sample_id, tokens=tokens_to_send)
+                        # Send to next
+                        self.out_message_queue.append(out_msg)
+                        self.out_queue_not_empty.set()
+
+                        self.input_pos[sample_id] = self.input_pos[sample_id][-1:].add_(
+                            1
+                        )
+                        iter += 1
+
+        if VERB:
+            print("Node inference loop stopped")
+
+    # ----- REST API ------------------------------------------------------------------
+    # 1. NEW ENDPOINT: Allow Orchestrator to fetch my Public Key
+    def GET(self, *path, **params):
+        if len(path) > 0 and path[0] == "key":
+            return self._serialize_public_key(self._ecdh_public_key)
+        return json.dumps(self.node_config)
+
+    def POST(self, *path, **params):
+        """
+        Functions:
+        - Secondary nodes:
+            Receive configuration info from the starter node and start connection with
+            previous and next, then start generation, i.e., wait for incoming data
+            through the sockets to be passed through the local model chunk.
+            Message fields:
+                role ("secondary:n" - does NOT overwrite the previous node given at init)
+                prev_node (as in configuration json file)
+                next_node (as in configuration json file)
+                model_config (serialized with Config.asdict())
+                n_nodes (number of total network nodes)
+                n_local_layers (n. of chunk layers - prevent issues due to different config)
+                [params] (model parameters - needed if no chunk path was passed)
+                n_samples (number of produced samples)
+        """
+        if (
+            self.node_type is None or "secondary" in self.node_type
+        ) and self.model is None:  # Only for non-init nodes
+            if len(path) > 0 and path[0] == "init":
+                assert not self.running.is_set()
+
+                init_msg = pickle.loads(cp.request.body.read())
+
+                # --- PAIRWISE KEY DERIVATION ---
+                # A. Derive Key IN (Shared with Previous Node)
+                prev_pub = init_msg.get("prev_node_pub_key")
+                if prev_pub:
+                    peer_key = self._deserialize_peer_key(prev_pub)
+                    self._key_in = self._derive_shared_key(self._ecdh_private_key, peer_key)
+                    if self.verb: print(f"[CRYPTO] Derived Key_IN: {self._key_in.hex()[:8]}...")
+
+                # B. Derive Key OUT (Shared with Next Node)
+                next_pub = init_msg.get("next_node_pub_key")
+                if next_pub:
+                    peer_key = self._deserialize_peer_key(next_pub)
+                    self._key_out = self._derive_shared_key(self._ecdh_private_key, peer_key)
+                    if self.verb: print(f"[CRYPTO] Derived Key_OUT: {self._key_out.hex()[:8]}...")
+                # -------------------------------
+
+
+                if self.node_type is None:
+                    self.role = self.node_type = init_msg["role"]
+                self.prev_node = init_msg["prev_node"]
+                self.next_node = init_msg["next_node"]
+   
+                # Assume model config is not initialized
+                self.model_config = Config(**init_msg["model_config"])
+                self.n_nodes = init_msg["n_nodes"]
+                self.n_layers_local = init_msg["n_local_layers"]
+                self.max_seq_length = (
+                    None
+                    if "max_seq_length" not in init_msg
+                    else init_msg["max_seq_length"]
+                )
+
+                if "params" in init_msg:
+                    if self.verb: # changed VERB to self.verb
+                        print("Received parameters from starter")
+                    self._init_model(
+                        self.n_layers_local, model_parameters=init_msg["params"]
+                    )
+                    # Clear memory of model_params
+                    del init_msg["params"]
+                    init_msg["params"] = None
+                    gc.collect()
+                else:
+                    if self.model_path is None:
+                        raise RuntimeError(
+                            "The received message did not contain the model parameters "
+                            "- please specify a model chunk path when initializing "
+                            "GPTServer object"
+                        )
+                    if self.verb: # changed VERB to self.verb
+                        print("Loading parameters from disk")
+                    self._init_model(self.n_layers_local, model_path=self.model_path)
+
+                self.n_samples = init_msg["n_samples"]
+                
+                # Load tokenizer if provided (for debugging)
+                if "tokenizer_dir" in init_msg and init_msg["tokenizer_dir"]:
+                    try:
+                        if self.verb:
+                            print(f"Loading tokenizer from {init_msg['tokenizer_dir']}")
+                        self._load_tokenizer(init_msg["tokenizer_dir"])
+                    except Exception as e:
+                        if self.verb:
+                            print(f"Warning: Could not load tokenizer: {e}")
+
+                if self.verb:
+                    print(f"{self.n_nodes} Nodes, generating {self.n_samples} samples")
+                    print(f"[INFO] Starting operation - {self.node_type} node")
+                
+                logger_wp.info("Received initialization information!")
+                
+                self.inference_thread = threading.Thread(
+                    target=self.start_inference, daemon=True, args=(self.n_samples,)
+                )
+                self.inference_thread.start()
+
+                # ---------------------------------------------------------
+                # NEW CODE: Return Server's Public Key
+                # ---------------------------------------------------------
+                cp.response.status = 200
+                
+                # We must return our public key so the Client can derive the secret too
+                my_pub_key_bytes = self._serialize_public_key(self._ecdh_public_key)
+                return my_pub_key_bytes 
+                # ---------------------------------------------------------
+
+            else:
+                raise cp.HTTPError(404, "Not found")
+
+    def PUT(self, *path):
+        """
+        Used by the starter to stop running nodes at the end of the generation.
+        """
+        if self.node_type == "starter":
+            raise cp.HTTPError(501, "PUT not implemented!")
+        else:
+            # TODO: fix shutdown procedure - should also release models if not terminating app
+            if len(path) > 0 and path[0] == "stop":
+                self._end_thr = threading.Thread(target=self.shutdown)
+                self._end_thr.start()
+                # self._end_thr.join()  # cannot wait, since thread stops server
+                if VERB:
+                    print("[INFO] Node stopped through PUT request!")
+                logger_wp.info("Received stopping directive")
+                cp.response.status = 200
+            else:
+                raise cp.HTTPError(404, "Not found!")
+
+
+# Copyright (c) 2024 Davide Macario
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+import json
+import logging
+import os
+import pickle
+import time
+import warnings
+from contextlib import nullcontext
+from pathlib import Path
+from typing import Any, Optional
+
+import cherrypy as cp
+import requests
+import torch
+
+from sub import PromptStyle
+from sub.config import N_LAYERS_NODES
+from sub.gptserver import GPTServer
+from sub.typing import FileType
+from sub.utils import load_from_pt, load_from_hf_direct, split_and_store_with_finisher
+from sub.utils.encryption import generate_ecdh_keypair
+docstring = """
+Distributed implementation of the Llama architecture using Model-Distributed Inference
+(with pipeline parallelism).
+This implementation allows to run a Llama model (of the ones compatible with LitGPT)
+over a network of "nodes" that can be positioned on different physical hosts.
+
+The distributed implementation consists of partitioning the model layers among all the
+nodes in the network. Then, each node will work with a subset of layers, receiving the
+input from the previous node in the network, and transmitting the output to the next
+one.
+This allows to reduce the memory usage for each node compared to the memory required to
+run the complete model on a single node, allowing to run larger models by increasing the
+number of network nodes.
+
+Parallelism is introduced by increasing the batch size, allowing to generate different
+independent samples.
+Due to the autoregressive nature of LLMs, to generate a new token in the sequence, it is
+required to feed back the new token to the model input, hence, if generating a single
+piece of text, the nodes that are not currently busy processing their local model chunk
+would be idle, waiting for the information to reach them.
+If we generate more than one sample, it is possible for different nodes to work on 
+different samples concurrently, improving efficiency.
+In particular, when the number of samples (batch size) is greater or equal than the
+number of nodes, it is possible to ensure every node is always working on a different
+sample.
+This mechanism, that we call, "recurrent pipelining", allows to achieve a generation
+rate (tokens/second) which is higher than sequential generation on a single device.
+With this work, we provide a proof of concept for the use of pipeline parallelism for 
+transformer architecture inference, resulting in an optimized implementation achieving
+competitive performances, with the added bonus of enabling LLM deployment on Edge
+devices (the testbed for this project was made up of Nvidia Jetson TX2 modules).
+
+The application architecture is the following.
+We define 2 types of nodes: "starter" nodes and "secondary" nodes; unlike the name
+suggests, there is no "master-slave" relationship between the 2, the "starter" is just
+acting as the "entrypoint"/application interface with the "user".
+Starter nodes are used to initialize secondary nodes and contain the first and last
+layers of the model. They take the model input (prompt) and collect the output tokens.
+As a consequence, they are the ones that "know" the exact number of tokens (and
+iterations) to be performed in the current inference run.
+Secondary nodes are "activated" by the starting node, and just receive inputs to be 
+passed through the local model chunk.
+For efficiency reasons, we assume the model chunks are already located on the devices
+themselves, but it is also possible to have the starter node split the model layers and
+send them to the different devices.
+
+Communication happens over 2 channels.
+For coordination and initialization, each node acts as an HTTP server and messages are
+sent over HTTP.
+For the transmissions of intermediate activations, the nodes use bare Python sockets 
+running over TCP/IP. The lack of a fully-fledged application layer protocol allows for
+a faster message exchange.
+At the application layer, the message only contains a header of fixed length, specifying
+the exact message size in bytes, which allows to read the exact amount of bytes to
+prevent issues due to message truncation.
+Being message transmission a crucial part of the application, as it is necessary to
+ensure it does not slow down the overall operation, we implement it through input and 
+output message queues running on separate threads.
+Once a message is received, it is placed in the input queue, from where the processing
+thread (the one performing model forward passes) will extract it (in order), process it,
+and place the output message in the output queue.
+There, a separate thread will extract it and transmit it.
+
+The application is composed of the following modules:
+- GPTDistributed: entrypoint for initializing nodes of any type; for starter nodes, it
+provides methods used at initialization.
+- GPTServer: core of the application; it creates the HTTP server for coordination and 
+sets up the message transmission sockets. It contains the definition of all the
+application threads and the processing loop.
+- GPT: model definition, based on LitGPT (by Lightning AI, in turn based on NanoGPT).
+The actual application uses submodels over with the same architecture (with the same
+building blocks).
+"""
+
+script_dir = os.path.dirname(__file__)
+
+logger_wp = logging.getLogger("model_dist")
+logger_wp.setLevel(logging.ERROR)
+
+MODEL_TYPE = ""
+CTX = nullcontext()
+
+
+class GPTDistributed:
+    __doc__ = docstring
+    init_msg = {
+        "role": "",
+        "prev_node": {},
+        "next_node": {},
+        "model_config": {},
+        "n_nodes": 0,
+        "n_samples": 0,
+        "max_seq_length": None,
+    }
+
+    def __init__(
+        self,
+        node_type: str,
+        config_file: FileType,
+        *,
+        ckpt_dir: Optional[FileType] = None,
+        chunk_path: Optional[FileType] = None,
+        device: Optional[str] = None,
+        dtype: Optional[str] = None,
+        secondary_index: Optional[int] = None,
+        model_seq_length: Optional[int] = None,
+        **kwargs,
+    ):
+        """
+        Instantiate a GPTDistributed object, allowing to run a node for
+        Model-Distributed Inference.
+
+        Args:
+            node_type: role of the node - can be "starter", "secondary", "secondary:<n>"
+                if "secondary", make sure to specify `secondary_index`
+            config_file: configuration file for the node(s);
+                In starters: it is the configuration of the whole network (full config.json)
+                In secondary: it _can_ be the full config or the individual node config
+            *
+            ckpt_dir (optional):
+                For starter nodes: checkpoint directory containing the
+                model_config.yaml file and either the chunks/ folder or the .pth model.
+                In secondary nodes, one between ckpt_dir and chunk_path must be present.
+            chunk_path (optional): path of the model chunk for the current node.
+                In starters: it can be inferred from ckpt_dir.
+                In secondary: if missing, the chunk path will be inferred.
+                NOTE: chunk path will always be passed, i.e., the model will always be
+                    loaded from disk!
+            device (default: None): string indicating the device used to load and run
+                the model; if not specified, the application will try to get it from the
+                nodes configuration file.
+            secondary_index (optional): positional, zero-index of the secondary node;
+                not necessary if only 1 secondary node is present in the configuration.
+                Not used by starter nodes.
+            model_seq_length (optional): maximum sequence length of the model; should be
+                less or equal than the one specified in the config (default value)
+            Keyword args (optional): allowing to specify verb=VERB and plots=PLOTS
+                (bool)
+        """
+        if isinstance(ckpt_dir, str):
+            self.ckpt_dir = Path(ckpt_dir)
+        else:
+            self.ckpt_dir = ckpt_dir
+        if isinstance(chunk_path, str):
+            self.chunk_path = Path(chunk_path)
+        else:
+            # Includes None
+            self.chunk_path = chunk_path
+
+        if isinstance(config_file, str):
+            config_file = Path(config_file)
+
+        self.torch_device = device if device else None
+
+        global VERB
+        VERB = False if "verb" not in kwargs else bool(kwargs["verb"])
+        global PLOTS
+        PLOTS = False if "plots" not in kwargs else bool(kwargs["plots"])
+
+        self.compile = False if "compile" not in kwargs else bool(kwargs["compile"])
+        self.dtype = dtype
+
+        if self.ckpt_dir:
+            self.full_model_name = self.ckpt_dir.name
+            if VERB:
+                print(f"Using model: {self.full_model_name}")
+
+        self.node_type = node_type
+        with open(config_file, "r") as f:
+            self.node_config = json.load(f)
+
+        if VERB:
+            print("Loaded nodes config file")
+
+        if self.node_type == "starter":
+            assert self.ckpt_dir, "No model was specified!"
+            self.n_secondary = len(self.node_config["nodes"]["secondary"])
+            self.n_nodes = 1 + self.n_secondary
+            if VERB and self.n_nodes == 1:
+                print("Running in standalone mode!")
+            self.own_config = self.node_config["nodes"]["starter"]
+            self.own_addr = self.own_config["addr"]
+            self.own_comm_port = self.own_config["communication"]["port"]
+            self.own_inference_port_in = self.own_config["inference"]["port_in"]
+            self.own_inference_port_out = self.own_config["inference"]["port_out"]
+
+            # TODO: add support for downloading model as well (extra)
+            # Load model config
+            if self.chunk_path:  # In standalone mode, chunk path is lit_model.pth
+                node_chunks_dir = self.chunk_path.resolve().parent
+                self.model_was_split = True
+            else:
+                #madina
+                # node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes"
+                # This is the fix. It now looks for ".../3nodes_finisher/"
+                node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes_finisher"
+                self.model_was_split = node_chunks_dir.is_dir()
+
+            # Check if we have lit_model.pth (converted) or only HF format
+            has_lit_model = (self.ckpt_dir / "lit_model.pth").exists()
+            
+            if not self.model_was_split and self.n_nodes > 1:
+                # Load model, split it, store it; the chunks will then be transmitted
+                if VERB:
+                    print("Chunks not found! Splitting the model")
+                if has_lit_model:
+                    self.model_config, full_model = load_from_pt(self.ckpt_dir)
+                else:
+                    # Load directly from HF format
+                    if VERB:
+                        print("Loading from HF format directly (no lit_model.pth found)")
+                    self.model_config, full_model = load_from_hf_direct(self.ckpt_dir)
+                assert full_model is not None
+                #split and store madina
+                node_chunks_dir = split_and_store_with_finisher(
+                    full_model, self.n_nodes, self.ckpt_dir
+                )
+            else:
+                # Here if either model was already split or running in standalone mode
+                if has_lit_model:
+                    self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
+                else:
+                    # Load config from HF format
+                    self.model_config, _ = load_from_hf_direct(self.ckpt_dir, config_only=True)
+
+            self.model_seq_length = None
+            if model_seq_length and model_seq_length > self.model_config.block_size:
+                raise ValueError(
+                    f"The truncated sequence length {model_seq_length} should be lower "
+                    "or equal than the model's max sequence length "
+                    f"{self.model_config.block_size}"
+                )
+            else:
+                self.model_seq_length = model_seq_length
+
+            # For standalone mode without lit_model.pth, we need to load weights to memory
+            model_weights = None
+            if not self.chunk_path:
+                if self.n_nodes > 1:
+                    self.chunk_path = node_chunks_dir / "model_starter.pth"
+                else:
+                    # Standalone mode
+                    if has_lit_model:
+                        self.chunk_path = self.ckpt_dir / "lit_model.pth"
+                    else:
+                        # Load weights from HF format directly to memory
+                        if VERB:
+                            print("Loading model weights from HF format for standalone mode...")
+                        _, model_weights = load_from_hf_direct(self.ckpt_dir)
+                        self.chunk_path = None  # Will pass weights directly
+
+            if (not self.chunk_path or not self.model_was_split) and self.n_nodes > 1:
+                self.chunk_path = node_chunks_dir / "model_starter.pth"
+
+            self.gpt_serv = GPTServer(
+                node_config=self.node_config,
+                node_type=self.node_type,
+                model_config=self.model_config,
+                chunk_path=self.chunk_path,
+                model_weights=model_weights,  # Pass weights for HF format standalone
+                tokenizer_dir=self.ckpt_dir,
+                model_device=self.torch_device,
+                dtype=dtype,
+                **kwargs,
+                model_type=self.full_model_name,
+                model_seq_length=self.model_seq_length
+            )
+            print("[DEBUG GPTDistributed.__init__] GPTServer constructed:")
+            print("  _ecdh_private_key:", getattr(self.gpt_serv, '_ecdh_private_key', None))
+            print("  _ecdh_public_key:", getattr(self.gpt_serv, '_ecdh_public_key', None))
+            print("  _serialize_public_key:", getattr(self.gpt_serv, '_serialize_public_key', None))
+            print("  _deserialize_peer_key:", getattr(self.gpt_serv, '_deserialize_peer_key', None))
+            print("  _derive_shared_key:", getattr(self.gpt_serv, '_derive_shared_key', None))
+
+        elif "secondary" in self.node_type:
+            # FIXME: secondary node may be completely agnostic of the used model and
+            # receive the model config (and the chunk) at initialization
+            assert (
+                self.ckpt_dir or self.chunk_path
+            ), "Need to specify at least 1 between the chunk path and the checkpoint directory"
+
+            # Can either pass "secondary:ind" or secondary_index=ind
+            split_type = self.node_type.split(":")
+            self.secondary_index = (
+                secondary_index if len(split_type) < 2 else int(split_type[1])
+            )
+            assert self.secondary_index is not None
+
+            self.node_type = f"secondary:{self.secondary_index}"
+            self.n_nodes = None
+            # Initialize secondary node
+            if "nodes" in self.node_config:
+                # Full config received
+                self.own_config = self.node_config["nodes"]["secondary"][
+                    self.secondary_index
+                ]
+                self.n_nodes = 1 + len(self.node_config["nodes"]["secondary"])
+            else:
+                # Partial config found
+                self.own_config = self.node_config
+            self.own_addr = self.own_config["addr"]
+            self.own_comm_port = self.own_config["communication"]["port"]
+            self.own_inference_port_in = self.own_config["inference"]["port_in"]
+            self.own_inference_port_out = self.own_config["inference"]["port_out"]
+
+            # NOTE: ckpt path may not be present
+            if self.ckpt_dir and self.n_nodes and self.chunk_path is None:
+                node_chunks_dir = self.ckpt_dir / "chunks" / f"{self.n_nodes}nodes_finisher"
+                self.chunk_path = (
+                    node_chunks_dir / f"model_secondary{self.secondary_index}.pth"
+                )
+            elif not self.chunk_path and not self.n_nodes:
+                warnings.warn(
+                    "Missing info about total n. of nodes, cannot select correct chunk"
+                )
+
+            if self.ckpt_dir:
+                # Try HF format first, fall back to LitGPT format
+                has_hf_config = (self.ckpt_dir / "config.json").exists()
+                if has_hf_config:
+                    self.model_config, _ = load_from_hf_direct(self.ckpt_dir, config_only=True)
+                else:
+                    self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
+            else:
+                self.model_config = None
+
+            self.gpt_serv = GPTServer(
+                node_config=self.node_config,
+                node_type=self.node_type,
+                model_config=self.model_config,
+                chunk_path=self.chunk_path,
+                model_device=self.torch_device,
+                dtype=dtype,
+                **kwargs,
+            )
+
+        # Here because if the 'device' arg is None, gpt_serv will infer it
+        self.torch_device = self.gpt_serv.model_device
+
+    def start(
+        self,
+        *,
+        n_samples: Optional[int] = None,
+        tokens_per_sample: Optional[int] = None,
+        prompt: Optional[str] = None,
+    ):
+        """
+        Main class entrypoint.
+        Start the application; for the starter node, this triggers the initialization of
+        other nodes and launches generation.
+        For secondary nodes, this starts an infinite loop where the node will wait to be
+        initialized and perform inference.
+
+        Args:
+            *,
+            n_samples (starter only): number of samples to be generated; NOTE: if the
+                number is lower than the number of nodes, the generation will not
+                benefit from pipelining.
+            tokens_per_sample (starter only): number of samples to be *generated*
+                (regardless of the prompt length).
+            prompt (starter only): prompt (as received from command line) - can be
+                FILE:<...>
+        """
+        if self.node_type == "starter":
+            assert n_samples and tokens_per_sample
+            assert self.model_config
+            # Init. nodes, launch iterations
+            if not self.configure_nodes(n_samples=n_samples):
+                raise RuntimeError("Unable to initialize network nodes!")
+
+            try:
+                out_text, time_gen = self.gpt_serv.launch_starter(
+                    n_samples, tokens_per_sample, prompt
+                )
+                print("-------------------------------------------------")
+                print("Produced output:\n")
+                for i, smpl in enumerate(out_text):
+                    print("-------------------------------------------------")
+                    print(f"Sample {i + 1}:")
+                    print(smpl, "\n")
+                print("-------------------------------------------------")
+                print(f"Total generation time: {time_gen[-1][1]}")
+
+                self.stop_nodes()
+
+                return time_gen
+            except KeyboardInterrupt:
+                self.gpt_serv.shutdown()
+                print("Node was stopped!")
+
+        else:
+            try:
+                cp.engine.block()  # Same as while True: time.sleep(...)
+            except KeyboardInterrupt:
+                self.gpt_serv.shutdown()
+                print("Node was stopped!")
+
+
+    # ---------------------------------------------------------------------------------
+
+    def configure_nodes(self, n_samples: int) -> int:
+        assert self.node_type == "starter"
+        
+        # 1. Collect Public Keys (Ring Construction)
+        print("[INIT] Phase 1: Collecting Keys...")
+        starter_pub = self.gpt_serv._serialize_public_key(self.gpt_serv._ecdh_public_key)
+        
+        # List of tuples: (Role, PubKeyBytes, Addr, Port)
+        network_ring = [("starter", starter_pub, None, None)] 
+
+        for i, sec_node in enumerate(self.node_config["nodes"]["secondary"]):
+            addr = f"http://{sec_node['addr']}:{sec_node['communication']['port']}/key"
+            try:
+                # GET request to fetch key
+                resp = requests.get(addr, timeout=5)
+                if resp.status_code == 200:
+                    sec_key = resp.content
+                    network_ring.append((f"secondary:{i}", sec_key, sec_node['addr'], sec_node['communication']['port']))
+                    print(f"  > Collected key for Secondary {i}")
+                else:
+                    raise ConnectionError(f"Node {i} failed to return key")
+            except Exception as e:
+                print(f"Failed to reach node {i}: {e}")
+                return 0
+
+        # 2. Distribute Keys to Secondaries
+        print(f"[INIT] Phase 2: Distributing Keys...")
+        total_nodes = len(network_ring)
+        
+        for i in range(1, total_nodes):
+            curr = network_ring[i]
+            prev = network_ring[(i - 1) % total_nodes]
+            next = network_ring[(i + 1) % total_nodes]
+            
+            curr_msg = self.init_msg.copy()
+            curr_msg["role"] = curr[0]
+            curr_msg["model_config"] = self.model_config.asdict()
+            curr_msg["n_nodes"] = self.n_nodes
+            curr_msg["n_local_layers"] = N_LAYERS_NODES[self.n_nodes][self.model_config.n_layer]["N_LAYERS_SECONDARY"]
+            curr_msg["n_samples"] = n_samples
+            
+            # --- PASS SPECIFIC KEYS ---
+            curr_msg["prev_node_pub_key"] = prev[1]
+            curr_msg["next_node_pub_key"] = next[1]
+            
+            # Routing
+            if i == 1: curr_msg["prev_node"] = self.own_config
+            else: curr_msg["prev_node"] = self.node_config["nodes"]["secondary"][i-2]
+                
+            if i == total_nodes - 1: curr_msg["next_node"] = self.own_config
+            else: curr_msg["next_node"] = self.node_config["nodes"]["secondary"][i]
+
+            # Send
+            target_url = f"http://{curr[2]}:{curr[3]}/init"
+            requests.post(target_url, data=pickle.dumps(curr_msg), timeout=100)
+
+        # 3. Configure Starter
+        print("[INIT] Phase 3: Configuring Starter...")
+        last_node = network_ring[-1]
+        first_node = network_ring[1]
+        
+        # Starter Key IN = Last Node Public Key
+        self.gpt_serv._key_in = self.gpt_serv._derive_shared_key(
+            self.gpt_serv._ecdh_private_key, 
+            self.gpt_serv._deserialize_peer_key(last_node[1])
+        )
+        # Starter Key OUT = First Node Public Key
+        self.gpt_serv._key_out = self.gpt_serv._derive_shared_key(
+            self.gpt_serv._ecdh_private_key, 
+            self.gpt_serv._deserialize_peer_key(first_node[1])
+        )
+        
+        print("[INIT] Ring Established.")
+        return 1
+    def stop_nodes(self) -> int:
+        """
+        Send a PUT request to all nodes triggering the application interruption.
+        """
+        out = 1
+        for sec_node in self.node_config["nodes"]["secondary"]:
+            target_addr = sec_node["addr"]
+            target_port = sec_node["communication"]["port"]
+
+            addr = f"http://{target_addr}:{target_port}/stop"
+            out *= self._request_to_node("put", addr, "")
+        return out
+
+    def _request_to_node(
+        self, req_type: str, addr: str, content: Any, max_n_requests: int = 100
+    ) -> int:
+        """
+        Send an HTTP request containing a json-formatted string to a specified
+        target node.
+
+        Args:
+            req_type: type of HTTP request, can be "post" or "put"
+            addr: full address (http(s)://<ip>:<port>) of the target node
+            content: python dict containing the information
+            max_n_requests: maximum number of requests before failure
+
+        Returns:
+            1 if successful
+            0 if failed
+        """
+        if req_type.lower() == "post":
+            req_func = requests.post
+        elif req_type.lower() == "put":
+            req_func = requests.put
+        else:
+            raise ValueError(f"Unsupported request type '{req_type}'")
+        ret = None
+        n_ret = 0
+        if VERB:
+            print(f"Sending {req_type} request to {addr}")
+            print(f"Payload: {len(pickle.dumps(content))} Bytes")
+        try:
+            # Specify timeout
+            ret = req_func(
+                addr,
+                data=pickle.dumps(content),
+                timeout=100,
+            )
+
+            if ret.status_code == 413:
+                raise ConnectionError(f"Max payload for {req_type} was exceeded!")
+            logger_wp.debug(
+                f"Successful {req_type} request sent to {addr} - code {ret.status_code}"
+            )
+        except requests.exceptions.Timeout:
+            if VERB:
+                print("Connection timed out!")
+            logger_wp.warning(f"Request timed out!")
+            n_ret += 1
+        except:
+            logger_wp.warning(f"Unable to submit {req_type} request sent to {addr}")
+            n_ret += 1
+        while (ret is None or ret.status_code != 200) and n_ret < max_n_requests:
+            if VERB:
+                print(
+                    f"Unable to reach node ({addr}) - retrying in 2s ({n_ret}/{max_n_requests})"
+                )
+            time.sleep(2)
+            try:
+                ret = req_func(
+                    addr,
+                    data=pickle.dumps(content),
+                    timeout=10000,
+                )
+                logger_wp.debug(
+                    f"Successful {req_type} request sent to {addr} - code {ret.status_code}"
+                )
+            except requests.exceptions.Timeout:
+                if VERB:
+                    print("Connection timed out!")
+                logger_wp.warning(f"Request timed out!")
+            except:
+                logger_wp.warning(f"Unable to submit {req_type} request sent to {addr}")
+            n_ret += 1
+
+        if ret is not None and ret.status_code == 200:
+            return 1
+        return 0
+
+import torch
+import numpy as np
+from Crypto.Cipher import AES
+import os
+import io
+import time
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.backends import default_backend
+
+def aes_encrypt_tensor_quantized(tensor: torch.Tensor, key: bytes) -> tuple:
+    """
+    Encrypts tensor data preserving exact bits using torch.save.
+    This handles bfloat16, strides, and endianness automatically.
+    """
+    start = time.time()
+    nonce = os.urandom(12)
+
+    # 1. Serialize Tensor to Bytes using PyTorch
+    # We use a BytesIO buffer to catch the output of torch.save
+    buffer = io.BytesIO()
+    # Detach and move to CPU first. 
+    # torch.save preserves the dtype (bfloat16) exactly.
+    torch.save(tensor.detach().cpu(), buffer)
+    data = buffer.getvalue()
+
+    # 2. Encrypt the serialized bytes
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    ciphertext, tag = cipher.encrypt_and_digest(data)
+    
+    elapsed = time.time() - start
+    with open("encryption_latency.txt", "a") as f:
+        f.write(f"ENCRYPT {elapsed:.6f}\n")
+    
+    # We keep dtype_name for compatibility, though torch.load handles it internally
+    dtype_name = str(tensor.dtype).split(".")[-1] 
+    return ciphertext, nonce, tag, tensor.shape, dtype_name
+
+
+def aes_decrypt_tensor_quantized(
+    ciphertext: bytes, nonce: bytes, tag: bytes, shape, dtype, key: bytes, device: str = "cpu"
+) -> torch.Tensor:
+    """
+    Decrypts bytes and reconstructs tensor using torch.load.
+    """
+    start = time.time()
+    
+    # 1. Verify & Decrypt
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    decrypted_bytes = cipher.decrypt_and_verify(ciphertext, tag)
+    
+    # 2. Deserialize using PyTorch
+    # This reconstructs the tensor exactly as it was sent
+    buffer = io.BytesIO(decrypted_bytes)
+    
+    # weights_only=True is a security best practice for loading tensors
+    # If your torch version is old and errors on weights_only, remove that argument.
+    try:
+        tensor = torch.load(buffer, map_location=device, weights_only=True)
+    except TypeError:
+         # Fallback for older PyTorch versions
+        tensor = torch.load(buffer, map_location=device)
+    
+    elapsed = time.time() - start
+    with open("encryption_latency.txt", "a") as f:
+        f.write(f"DECRYPT {elapsed:.6f}\n")
+        
+    return tensor
+
+# --- Key Management Functions ---
+
+def generate_ecdh_keypair():
+    """Generate ECDH private and public key."""
+    # SECP384R1 is NIST P-384
+    private_key = ec.generate_private_key(ec.SECP384R1(), default_backend())
+    public_key = private_key.public_key()
+    return private_key, public_key
+
+def serialize_public_key(public_key):
+    """Prepare the public key for transmission over the network (HTTP)."""
+    return public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+def deserialize_public_key(public_bytes):
+    return serialization.load_pem_public_key(public_bytes, backend=default_backend())
+
+def derive_shared_key(private_key, peer_public_key):
+    """Performs the Elliptic Curve multiplication to calculate the Shared Secret"""
+    shared_secret = private_key.exchange(ec.ECDH(), peer_public_key)
+    # Derive a 32-byte AES key from the shared secret
+    derived_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=b"mdi-llm-ecdh",
+        backend=default_backend(),
+    ).derive(shared_secret)
+    return derived_key

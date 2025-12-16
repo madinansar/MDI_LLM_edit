@@ -112,3 +112,76 @@ For 0.6B
 ./src/secondary.py --chunk ./src/checkpoints/Qwen/Qwen3-0.6B/chunks/3nodes_finisher/model_secondary1.pth --nodes-config ./src/settings_distr/config_m3pro_3nodes.json 1 -v
 
 python3.10 src/fastapi_gateway.py --ckpt ./src/checkpoints/Qwen/Qwen3-0.6B --nodes-config ./src/settings_distr/config_m3pro_3nodes.json --sequence-length 1024
+
+
+
+Qwen 2 nodes:
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/2nodes_finisher/model_secondary0.pth \
+--nodes-config ./src/settings_distr/config_2nodes_cpu.json 0 \
+--dtype bfloat16 \
+-v
+
+
+python3.10 src/fastapi_gateway.py \
+--host 0.0.0.0 \
+--port 8000 \
+--ckpt ./src/checkpoints/Qwen/Qwen3-1.7B \
+--nodes-config ./src/settings_distr/config_2nodes_cpu.json \
+--sequence-length 1024
+
+python3.10 ./src/prepare_model.py Qwen/Qwen3-1.7B --n-nodes 4 --skip-convert
+
+
+
+
+Qwen 2 nodes:
+
+
+
+Qwen 4 nodes
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/4nodes_finisher/model_secondary0.pth \
+--nodes-config ./src/settings_distr/configuration_4.json 0 \
+--dtype bfloat16 \
+-v
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/4nodes_finisher/model_secondary1.pth \
+--nodes-config ./src/settings_distr/configuration_4.json 1 \
+--dtype bfloat16 \
+-v
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/4nodes_finisher/model_secondary2.pth \
+--nodes-config ./src/settings_distr/configuration_4.json 2 \
+--dtype bfloat16 \
+-v
+
+python3.10 src/fastapi_gateway.py \
+--host 0.0.0.0 \
+--port 8000 \
+--ckpt ./src/checkpoints/Qwen/Qwen3-1.7B \
+--nodes-config ./src/settings_distr/configuration_4.json \
+--sequence-length 1024
+
+
+Qwen 3 nodes
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/3nodes_finisher/model_secondary0.pth \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json 0 \
+--dtype bfloat16 \
+-v
+
+python3.10 ./src/secondary.py \
+--chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/3nodes_finisher/model_secondary1.pth \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json 1 \
+--dtype bfloat16 \
+-v
+
+python3.10 src/fastapi_gateway.py \
+--host 0.0.0.0 \
+--port 8000 \
+--ckpt ./src/checkpoints/Qwen/Qwen3-1.7B \
+--nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
+--sequence-length 1024

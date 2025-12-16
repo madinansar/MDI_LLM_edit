@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import pickle
+import requests
 import threading
 import time
 import warnings
@@ -209,8 +210,12 @@ class GPTServer:
         self._serialize_public_key = serialize_public_key
         self._deserialize_peer_key = deserialize_public_key
         self._derive_shared_key = derive_shared_key
-        self._peer_public_key = None
-        self._shared_aes_key = None
+        
+        # Separate keys for incoming and outgoing encryption
+        self._prev_node_public_key = None  # Public key from previous node
+        self._next_node_public_key = None  # Public key from next node
+        self._aes_key_in = None   # For decrypting data from previous node
+        self._aes_key_out = None  # For encrypting data to next node
         # ---------------------------------------------------------------------
 
         # Get model_weights from kwargs if provided (for HF direct loading)
@@ -727,6 +732,15 @@ class GPTServer:
                 dtype=self.ptdtype,
                 device_map={"": self.model_device} # Optimization: Force load to target device
             )
+            
+            # Explicitly convert lm_head for finisher nodes (needed even after accelerate)
+            if hasattr(self.model, 'lm_head'):
+                print(f"[DEBUG] lm_head dtype before: {self.model.lm_head.weight.dtype}")
+                self.model.lm_head = self.model.lm_head.to(dtype=self.ptdtype)
+                print(f"[DEBUG] lm_head dtype after: {self.model.lm_head.weight.dtype}")
+                # Also convert ln_f if it exists
+                if hasattr(self.model.transformer, 'ln_f'):
+                    self.model.transformer.ln_f = self.model.transformer.ln_f.to(dtype=self.ptdtype)
         else:
             # NOTE: if here, cannot use accelerate! Weights are already in memory...
             model_parameters = {
@@ -734,6 +748,14 @@ class GPTServer:
             }
             self.model.load_weights(model_parameters)
             self.model = self.model.to(self.ptdtype)
+            # Explicitly convert lm_head for finisher nodes (aggressive conversion)
+            if hasattr(self.model, 'lm_head'):
+                print(f"[DEBUG] lm_head dtype before: {self.model.lm_head.weight.dtype}")
+                self.model.lm_head = self.model.lm_head.to(dtype=self.ptdtype)
+                print(f"[DEBUG] lm_head dtype after: {self.model.lm_head.weight.dtype}")
+                # Also convert ln_f if it exists
+                if hasattr(self.model.transformer, 'ln_f'):
+                    self.model.transformer.ln_f = self.model.transformer.ln_f.to(dtype=self.ptdtype)
 
         if self.max_seq_length:
             print(f"[DEBUG] Truncating context length to {self.max_seq_length}")
@@ -1121,10 +1143,17 @@ class GPTServer:
                             if idx_cond.dtype != self.ptdtype:
                                 idx_cond = idx_cond.to(dtype=self.ptdtype)
 
-                            # Use ECDH-derived key for encryption
-                            if self._shared_aes_key is None:
-                                raise RuntimeError("AES key not established. ECDH handshake required.")
-                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(idx_cond, self._shared_aes_key)
+                            # Use ECDH-derived key for encryption to NEXT node
+                            if self._aes_key_out is None:
+                                raise RuntimeError("AES key_out not established. ECDH handshake with next node required.")
+                            
+                            # DEBUG: Log key info before encryption
+                            if self.verb:
+                                print(f"\n[STARTER ENCRYPT] About to encrypt to next node")
+                                print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
+                                print(f"  Data shape: {idx_cond.shape}, dtype: {idx_cond.dtype}")
+                            
+                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(idx_cond, self._aes_key_out)
                             # === LOG Encrypted garbage value ===
                             if self.verb:
                                 # Print the first 64 characters (32 bytes) of the ciphertext in Hex
@@ -1251,18 +1280,28 @@ class GPTServer:
                         if iter >= self.n_samples:
                             first_glob_iter = False
 
-                        # DECRYPT activations received from starter
+                        # DECRYPT activations received from previous node
                         data = in_msg["data"]
                         if isinstance(data, dict) and all(k in data for k in ("ciphertext", "nonce", "tag", "shape", "dtype")):
+                            # DEBUG: Log key info before decryption
+                            if self.verb:
+                                print(f"\n[{self.node_type.upper()} DECRYPT] About to decrypt from previous node")
+                                print(f"  Using _aes_key_in: {self._aes_key_in[:16].hex() if self._aes_key_in else 'None'}...")
+                                print(f"  Ciphertext length: {len(data['ciphertext'])} bytes")
+                                print(f"  Expected shape: {data['shape']}, dtype: {data['dtype']}")
+                            
                             idx = aes_decrypt_tensor_quantized(
                                 data["ciphertext"],
                                 data["nonce"],
                                 data["tag"],
                                 data["shape"],
                                 getattr(torch, data["dtype"]),
-                                self._shared_aes_key,
+                                self._aes_key_in,
                                 device=self.torch_model_device
                             )
+                            
+                            if self.verb:
+                                print(f"  [DECRYPT SUCCESS] Decrypted to shape: {idx.shape}, dtype: {idx.dtype}")
                         else:
                             idx = data.to(device=self.torch_model_device, dtype=self.ptdtype)
                         
@@ -1395,7 +1434,16 @@ class GPTServer:
 
                         # ENCRYPT activations before sending to next node (if not FinisherNode)
                         if not isinstance(self.model, FinisherNode):
-                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(outs, self._shared_aes_key)
+                            if self._aes_key_out is None:
+                                raise RuntimeError("AES key_out not established. ECDH handshake with next node required.")
+                            
+                            # DEBUG: Log key info before encryption
+                            if self.verb:
+                                print(f"\n[{self.node_type.upper()} ENCRYPT] About to encrypt to next node")
+                                print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
+                                print(f"  Data shape: {outs.shape}, dtype: {outs.dtype}")
+                            
+                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(outs, self._aes_key_out)
                             encrypted_payload = {
                                 'ciphertext': ciphertext,
                                 'nonce': nonce,
@@ -1459,24 +1507,24 @@ class GPTServer:
                 init_msg = pickle.loads(cp.request.body.read())
 
                 # ---------------------------------------------------------
-                # NEW CODE: Handle ECDH Handshake
+                # NEW CODE: Handle ECDH Handshake with Previous Node
                 # ---------------------------------------------------------
-                # Extract the Starter's Public Key
-                starter_pub_key_bytes = init_msg.get("ecdh_public_key")
+                # Extract the previous node's Public Key
+                prev_pub_key_bytes = init_msg.get("ecdh_public_key")
                 
-                if starter_pub_key_bytes:
+                if prev_pub_key_bytes:
                     if self.verb:
-                        print(f"[DEBUG] Received Starter Public Key ({len(starter_pub_key_bytes)} bytes)")
+                        print(f"[DEBUG] Received Previous Node Public Key ({len(prev_pub_key_bytes)} bytes)")
                     
-                    # Deserialize and Derive Shared Secret
+                    # Deserialize and Derive key_in for INCOMING data (decrypt from prev)
                     try:
-                        peer_key = self._deserialize_peer_key(starter_pub_key_bytes)
-                        #self._shared_aes_key = self._derive_shared_key(peer_key)
-                        self._shared_aes_key = self._derive_shared_key(self._ecdh_private_key, peer_key)
+                        self._prev_node_public_key = self._deserialize_peer_key(prev_pub_key_bytes)
+                        self._aes_key_in = self._derive_shared_key(self._ecdh_private_key, self._prev_node_public_key)
                         if self.verb:
-                            print(f"[INFO] ECDH Shared Secret derived successfully.")
+                            print(f"[INFO] ECDH key_in (for decryption from prev) derived successfully.")
+                            print(f"[DEBUG] key_in = {self._aes_key_in[:16].hex()}...")
                     except Exception as e:
-                        print(f"[ERROR] ECDH Derivation failed: {e}")
+                        print(f"[ERROR] ECDH key_in Derivation failed: {e}")
                         raise cp.HTTPError(500, f"Crypto Handshake Failed: {e}")
                 # ---------------------------------------------------------
 
@@ -1542,15 +1590,85 @@ class GPTServer:
                 self.inference_thread.start()
 
                 # ---------------------------------------------------------
-                # NEW CODE: Return Server's Public Key
+                # Key Exchange with NEXT Node (establish key_out for outgoing)
+                # ---------------------------------------------------------
+                # Only do this if we're not the finisher (finisher has no next node to encrypt to)
+                if self.next_node is not None and not isinstance(self.model, FinisherNode):
+                    try:
+                        next_addr = self.next_node["addr"]
+                        next_port = self.next_node["communication"]["port"]
+                        next_url = f"http://{next_addr}:{next_port}/exchange_key"
+                        
+                        if self.verb:
+                            print(f"[INFO] Initiating key exchange with next node at {next_url}")
+                        
+                        # Send our public key to the next node
+                        my_pub_key_bytes = self._serialize_public_key(self._ecdh_public_key)
+                        response = requests.post(next_url, data=my_pub_key_bytes, timeout=30)
+                        
+                        if response.status_code == 200:
+                            # Receive next node's public key
+                            next_pub_key_bytes = response.content
+                            self._next_node_public_key = self._deserialize_peer_key(next_pub_key_bytes)
+                            self._aes_key_out = self._derive_shared_key(self._ecdh_private_key, self._next_node_public_key)
+                            if self.verb:
+                                print(f"[INFO] ECDH key_out (for encryption to next) derived successfully.")
+                                print(f"[DEBUG] key_out = {self._aes_key_out[:16].hex()}...")
+                        else:
+                            print(f"[ERROR] Key exchange with next node failed: status {response.status_code}")
+                            raise RuntimeError(f"Key exchange failed with status {response.status_code}")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to exchange keys with next node: {e}")
+                        raise
+                elif isinstance(self.model, FinisherNode):
+                    if self.verb:
+                        print(f"[INFO] Finisher node - no key_out needed (no next node)")
+                # ---------------------------------------------------------
+
+                # ---------------------------------------------------------
+                # Return our Public Key to previous node (finalize key_in handshake)
                 # ---------------------------------------------------------
                 cp.response.status = 200
                 
-                # We must return our public key so the Client can derive the secret too
+                # We must return our public key so the previous node can derive key_out
                 my_pub_key_bytes = self._serialize_public_key(self._ecdh_public_key)
                 return my_pub_key_bytes 
                 # ---------------------------------------------------------
 
+            elif len(path) > 0 and path[0] == "exchange_key":
+                # ---------------------------------------------------------
+                # NEW ENDPOINT: Handle key exchange from previous node
+                # ---------------------------------------------------------
+                # This endpoint is called by the previous node to exchange keys
+                # We receive their public key and return ours
+                
+                prev_pub_key_bytes = cp.request.body.read()
+                
+                if prev_pub_key_bytes:
+                    if self.verb:
+                        print(f"[DEBUG] /exchange_key: Received public key ({len(prev_pub_key_bytes)} bytes)")
+                    
+                    try:
+                        # Deserialize the previous node's public key
+                        self._prev_node_public_key = self._deserialize_peer_key(prev_pub_key_bytes)
+                        # Derive key_in for decrypting incoming data
+                        self._aes_key_in = self._derive_shared_key(self._ecdh_private_key, self._prev_node_public_key)
+                        if self.verb:
+                            print(f"[INFO] /exchange_key: key_in derived successfully")
+                            print(f"[DEBUG] /exchange_key: key_in = {self._aes_key_in[:16].hex()}...")
+                        
+                        # Return our public key so they can derive key_out
+                        cp.response.status = 200
+                        my_pub_key_bytes = self._serialize_public_key(self._ecdh_public_key)
+                        return my_pub_key_bytes
+                        
+                    except Exception as e:
+                        print(f"[ERROR] /exchange_key: Key derivation failed: {e}")
+                        raise cp.HTTPError(500, f"Key exchange failed: {e}")
+                else:
+                    raise cp.HTTPError(400, "No public key received")
+                # ---------------------------------------------------------
+            
             else:
                 raise cp.HTTPError(404, "Not found")
 

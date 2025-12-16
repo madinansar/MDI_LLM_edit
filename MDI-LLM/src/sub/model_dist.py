@@ -465,6 +465,11 @@ class GPTDistributed:
         if self.gpt_serv._ecdh_public_key is None or self.gpt_serv._ecdh_private_key is None:
             self.gpt_serv._ecdh_private_key, self.gpt_serv._ecdh_public_key = generate_ecdh_keypair()
 
+        # Track public keys of each node for key exchange
+        # Index: node index, Value: serialized public key bytes
+        node_public_keys = {}
+        node_public_keys['starter'] = self.gpt_serv._serialize_public_key(self.gpt_serv._ecdh_public_key)
+
         # Iterate through secondary nodes
         for i, sec_node in enumerate(self.node_config["nodes"]["secondary"]):
             
@@ -483,8 +488,14 @@ class GPTDistributed:
             curr_msg["prev_node"] = prev
             curr_msg["next_node"] = next_node_config
 
-            # Attach Public Key
-            curr_msg['ecdh_public_key'] = self.gpt_serv._serialize_public_key(self.gpt_serv._ecdh_public_key)
+            # Attach PREVIOUS node's public key (for establishing key_in)
+            # Secondary 0 gets starter's key, Secondary 1 gets Secondary 0's key, etc.
+            if i == 0:
+                prev_pub_key = node_public_keys['starter']
+            else:
+                prev_pub_key = node_public_keys[i - 1]
+            
+            curr_msg['ecdh_public_key'] = prev_pub_key
 
             if not self.model_was_split:
                 chunk_path = node_chunks_dir / f"model_secondary{i}.pth"
@@ -503,16 +514,24 @@ class GPTDistributed:
                 response = requests.post(addr, data=pickle.dumps(curr_msg), timeout=100)
                 
                 if response.status_code == 200:
-                    # 3. PROCESS RESPONSE (FINALIZE HANDSHAKE)
+                    # 3. PROCESS RESPONSE - Receive and store this secondary's public key
                     sec_pubkey_bytes = response.content
-                    self.gpt_serv._peer_public_key = self.gpt_serv._deserialize_peer_key(sec_pubkey_bytes)
-                    #self.gpt_serv._shared_aes_key = self.gpt_serv._derive_shared_key(self.gpt_serv._peer_public_key)
-                    self.gpt_serv._shared_aes_key = self.gpt_serv._derive_shared_key(
-                        self.gpt_serv._ecdh_private_key, 
-                        self.gpt_serv._peer_public_key
-                    )
+                    node_public_keys[i] = sec_pubkey_bytes  # Store for next iteration
                     
-                    if VERB: print(f"> Success! Shared key derived for node {i}.")
+                    # Only derive key_out for the FIRST secondary (starter's next node)
+                    if i == 0:
+                        self.gpt_serv._next_node_public_key = self.gpt_serv._deserialize_peer_key(sec_pubkey_bytes)
+                        self.gpt_serv._aes_key_out = self.gpt_serv._derive_shared_key(
+                            self.gpt_serv._ecdh_private_key, 
+                            self.gpt_serv._next_node_public_key
+                        )
+                        
+                        # Always print this for debugging
+                        print(f"> Success! key_out (for encryption) derived for secondary {i}.")
+                        print(f"[DEBUG STARTER] key_out = {self.gpt_serv._aes_key_out[:16].hex()}...")
+                    else:
+                        print(f"> Success! Secondary node {i} initialized.")
+                    
                     logger_wp.info(f"Secondary node {i} initialized.")
                 else:
                     print(f"> Failed with status {response.status_code}")

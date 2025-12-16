@@ -335,11 +335,24 @@ class FinisherNode(NodePrototype):
         if self.verb:
             print(f"Weights loaded!")
         return 1
+    
+    def to(self, *args, **kwargs):
+        """Override to ensure lm_head is also converted"""
+        super().to(*args, **kwargs)
+        # Explicitly convert lm_head to ensure dtype consistency
+        if hasattr(self, 'lm_head'):
+            self.lm_head = self.lm_head.to(*args, **kwargs)
+        return self
 
     def forward(
         self, idx: torch.Tensor, input_pos: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         """Forward pass - finisher node"""
+        # CRITICAL: Ensure input has correct dtype (transformer blocks may convert otherwise)
+        target_dtype = next(self.parameters()).dtype
+        if idx.dtype != target_dtype:
+            idx = idx.to(dtype=target_dtype)
+        
         T = idx.size(1)
         if self.max_seq_length < T:
             raise ValueError(
@@ -361,9 +374,17 @@ class FinisherNode(NodePrototype):
         for block in self.transformer.h:
             idx = block(idx, cos, sin, mask, input_pos)
         
+        # CRITICAL: Ensure idx stays in model dtype after transformer blocks
+        if idx.dtype != target_dtype:
+            idx = idx.to(dtype=target_dtype)
+        
         # --- This is the new part ---
         # Run through final layers
+        print(f"[DEBUG FinisherNode] Before ln_f: idx.dtype = {idx.dtype}")
+        print(f"[DEBUG FinisherNode] ln_f weight dtype = {self.transformer.ln_f.weight.dtype}")
         idx = self.transformer.ln_f(idx)
+        print(f"[DEBUG FinisherNode] After ln_f: idx.dtype = {idx.dtype}")
+        print(f"[DEBUG FinisherNode] lm_head weight dtype = {self.lm_head.weight.dtype}")
         logits = self.lm_head(idx)
         # --- End new part ---
 
