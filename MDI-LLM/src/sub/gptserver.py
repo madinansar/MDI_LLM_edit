@@ -52,7 +52,8 @@ from sub.utils import (catch_loop_errors, count_transformer_blocks,
                        waiting_animation)
 from sub.submodels import SecondaryNode, StarterNode, FinisherNode #madina
 from sub.utils.encryption import aes_encrypt_tensor_quantized, aes_decrypt_tensor_quantized
-
+from sub.utils.encryption import generate_ecdh_keypair, serialize_public_key, deserialize_public_key, derive_shared_key
+       
 import nltk
 nltk.download('stopwords')
 
@@ -142,7 +143,13 @@ class GPTServer:
     in_queue_thread = threading.Thread()
     out_queue_thread = threading.Thread()
 
-    # --- SINGLE, CONSOLIDATED __INIT__ ---
+
+    # NEW: Dual Keys
+    _key_in: Optional[bytes] = None   # Decrypt from Prev
+    _key_out: Optional[bytes] = None  # Encrypt to Next
+
+
+    # --- __INIT__ ---
     def __init__(
         self,
         node_config: Dict,
@@ -198,9 +205,8 @@ class GPTServer:
         self.node_config = node_config
         
         # ---------------------------------------------------------------------
-        # 2. KEY GENERATION (Moved from the deleted __init__)
+        # 2. KEY GENERATION 
         # ---------------------------------------------------------------------
-        from sub.utils.encryption import generate_ecdh_keypair, serialize_public_key, deserialize_public_key, derive_shared_key
         self._ecdh_private_key, self._ecdh_public_key = generate_ecdh_keypair()
         
         if self.verb:
@@ -1227,7 +1233,7 @@ class GPTServer:
                         self.out_queue_not_empty.set()
 
         if VERB:
-            print("[INFO] Generation completed!                          ")
+            print("[INFO] Generation completed!")
         logger_wp.info("Generation completed")
 
         out_truncated = [
@@ -1243,7 +1249,7 @@ class GPTServer:
         out_samples = [self.tok.decode(smp) for smp in out_truncated]
         
         # Truncate to complete sentences (remove partial sentences at the end)
-        out_samples = [truncate_to_complete_answer(smp, max_sentences=3) for smp in out_samples]
+        # out_samples = [truncate_to_complete_answer(smp, max_sentences=3) for smp in out_samples]
         
         print(f"Out samples in starter loop: {out_samples}")
         return out_samples, self.tok_time
@@ -1333,7 +1339,7 @@ class GPTServer:
                                 print(f"  [DECRYPT SUCCESS] Decrypted to shape: {idx.shape}, dtype: {idx.dtype}")
                         else:
                             idx = data.to(device=self.torch_model_device, dtype=self.ptdtype)
-                        
+
                         # DEBUG: Show what secondary node received
                         if VERB:
                             print(f"\n{'='*80}")
@@ -1362,11 +1368,20 @@ class GPTServer:
                                 decoded_text = self.tok.decode(tokens.squeeze())
                                 print(f"  Current token sequence: {decoded_text}")
                             print(f"{'='*80}\n")
-                        if sample_id not in self.T_i:
-                            assert (
-                                first_glob_iter
-                            ), "Should have seen this sample already..."
-                            # Initialization of the input_pos
+                        # if sample_id not in self.T_i:
+                        #     assert (
+                        #         first_glob_iter
+                        #     ), "Should have seen this sample already..."
+                        #     # Initialization of the input_pos
+                        #     self._init_sample_caches(sample_id, idx)
+                        
+                        # AUTO-RESET: If input is a Prompt (len > 1), RESET the cache.
+                        # This fixes the issue where old caches persist between runs.
+                        if idx.shape[1] > 1:
+                            if VERB: print(f"[CACHE RESET] New prompt detected (len={idx.shape[1]}). resetting cache for sample {sample_id}.")
+                            self._init_sample_caches(sample_id, idx)
+                        elif sample_id not in self.T_i:
+                            # Fallback if we missed the prompt (shouldn't happen in correct ring)
                             self._init_sample_caches(sample_id, idx)
 
                         # Swap KVCache
@@ -1374,69 +1389,56 @@ class GPTServer:
                         for ind_b, block in enumerate(self.model.transformer.h):
                             block.attn.kv_cache = curr_kvcache[ind_b]
                         
-
-                        # Forward pass
+                        if VERB:
+                            print(f"[DEBUG CACHE] Sample {sample_id} | Iter {iter} | Input Pos: {self.input_pos[sample_id]}")
+                        
+                        # 2. FORWARD
                         outs = self.model(idx, input_pos=self.input_pos[sample_id])
-                        # CRITICAL: For non-finisher nodes, ensure output stays in model's dtype (float16)
-                        if not isinstance(self.model, FinisherNode) and outs.dtype != self.ptdtype:
-                            outs = outs.to(dtype=self.ptdtype)
 
                         # [FINISHER NODE] Generate token and encrypt back to starter
                         if isinstance(self.model, FinisherNode):
+                             # === FINISHER LOGIC (Sampling) ===
                              # 'outs' is currently logits [1, 1, vocab_size]
-                             # We sample from it right here to get the token ID [1, 1]
                              idx_next = sample(outs, temperature=self.temperature, top_k=self.top_k, vocab_size=self.model_config.vocab_size)
                              
-                             # [LOGGING REQUEST] Log the exact generation time
+                             # [LOGGING]
                              import datetime
                              current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")
                              print(f"\n[TOKEN GENERATED] at {current_time}")
                              print(f"[TOKEN ID] {idx_next.item()}\n")
                              
-                             # Track samples in finisher for stop token detection
-                             if not hasattr(self, 'samples'):
-                                 self.samples = {}
+                             # Track samples
+                             if not hasattr(self, 'samples'): self.samples = {}
                              
-                             # Get tokens from message or initialize
                              if "tokens" in in_msg:
-                                 self.samples[sample_id] = torch.cat(
-                                     (in_msg["tokens"].to(self.torch_model_device), idx_next.view(1, -1)), dim=1
-                                 )
+                                 self.samples[sample_id] = torch.cat((in_msg["tokens"].to(self.torch_model_device), idx_next.view(1, -1)), dim=1)
                              elif sample_id in self.samples:
-                                 self.samples[sample_id] = torch.cat(
-                                     (self.samples[sample_id], idx_next.view(1, -1)), dim=1
-                                 )
+                                 self.samples[sample_id] = torch.cat((self.samples[sample_id], idx_next.view(1, -1)), dim=1)
                              else:
                                  self.samples[sample_id] = idx_next.view(1, -1)
                              
-                             # Detect stop tokens
+                             # Stop Token Detection
                              stopping_detected = False
                              if hasattr(self, 'stop_tokens') and self.stop_tokens:
-                                 stopping_detected = detect_stop_tokens(
-                                     self.samples[sample_id], self.stop_tokens
-                                 )
+                                 stopping_detected = detect_stop_tokens(self.samples[sample_id], self.stop_tokens)
                              
                              if VERB:
                                  print(f"  Sampled token ID: {idx_next.item()}")
                                  if hasattr(self, 'tok') and self.tok is not None:
                                      sampled_token = self.tok.decode(idx_next.squeeze())
                                      print(f"  Sampled token text: '{sampled_token}'")
-                                 if stopping_detected:
-                                     print(f"  >>> STOP TOKEN DETECTED! <<<")
+                                 if stopping_detected: print(f"  >>> STOP TOKEN DETECTED! <<<")
                                  print(f"{'='*80}\n")
                              
-                             # If stop token detected, send stop message instead of token
+                             # Handle Stop
                              if stopping_detected:
-                                 if VERB:
-                                     print(f"[DEBUG] Finisher detected stop token for sample {sample_id}, sending stop signal")
-                                 out_msg = self._build_msg(
-                                     data="", sample_index=sample_id, stop=True
-                                 )
+                                 if VERB: print(f"[DEBUG] Finisher detected stop token for sample {sample_id}, sending stop signal")
+                                 out_msg = self._build_msg(data="", sample_index=sample_id, stop=True)
                                  self.out_message_queue.append(out_msg)
                                  self.out_queue_not_empty.set()
                                  self.input_pos[sample_id] = self.input_pos[sample_id][-1:].add_(1)
                                  iter += 1
-                                 continue  # Skip the rest, we already sent the message
+                                 continue  # Skip sending the normal token
                              
                              # Use idx_next as outs for encryption and sending
                              outs = idx_next
@@ -1470,22 +1472,35 @@ class GPTServer:
                              iter += 1
                              continue  # Skip normal processing below
 
-                        # DEBUG: Show what secondary node is sending
+                        else:
+                            # === HIDDEN LAYER LOGIC (Encryption) ===
+                            # 1. Ensure correct dtype
+                            if outs.dtype != self.ptdtype:
+                                outs = outs.to(dtype=self.ptdtype)
+                            
+                            # 2. Encrypt using KEY_OUT
+                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(
+                                outs, self._key_out 
+                            )
+                            
+                            if self.verb:
+                                print(f"  [DEBUG CIPHERTEXT] {ciphertext[:32].hex()}...") 
+                            
+                            # 3. Prepare Output (Encrypted Dict)
+                            outs_to_send = { 
+                                'ciphertext': ciphertext, 'nonce': nonce, 'tag': tag, 
+                                'shape': shape, 'dtype': dtype_name 
+                            }
+
+                        # DEBUG: Show what secondary node is sending (Common for both)
                         if VERB:
                             print(f"\n{'='*80}")
                             print(f"[SECONDARY {self.role} SENDING] Sample {sample_id}")
-                            print(f"  Output activation shape: {outs.shape}")
-                            print(f"  Output activation dtype: {outs.dtype}")
-                            print(f"  Output activation device: {outs.device}")
-                            
-                            # [FIX] Don't calculate mean() if it's an Integer (Token ID)
                             if outs.dtype in [torch.int64, torch.int32, torch.long]:
                                 print(f"  [SUCCESS] Sending Generated Token ID: {outs.item()}")
                             else:
-                                # It is floats/logits, so we can calculate stats
-                                print(f"  Output activation stats: min={outs.min().item():.4f}, max={outs.max().item():.4f}, mean={outs.mean().item():.4f}")
-                                print(f"  First 5 values of first element: {outs[0, 0, :5].tolist()}")
-                                
+                                print(f"  Output activation shape: {outs.shape}")
+                                print(f"  First 5 values: {outs[0, 0, :5].tolist()}")
                             print(f"{'='*80}\n")
 
 
@@ -1528,15 +1543,11 @@ class GPTServer:
             print("Node inference loop stopped")
 
     # ----- REST API ------------------------------------------------------------------
-
+    # 1. NEW ENDPOINT: Allow Orchestrator to fetch my Public Key
     def GET(self, *path, **params):
-        """
-        Functions
-            Return node information (port numbers, [capabilities]?)
-            Used for pinging "neighbor" nodes
-        """
-        if len(path) == 0:
-            return json.dumps(self.node_config)
+        if len(path) > 0 and path[0] == "key":
+            return self._serialize_public_key(self._ecdh_public_key)
+        return json.dumps(self.node_config)
 
     def POST(self, *path, **params):
         """
@@ -1624,8 +1635,6 @@ class GPTServer:
                     self.role = self.node_type = init_msg["role"]
                 self.prev_node = init_msg["prev_node"]
                 self.next_node = init_msg["next_node"]
-                
-                # ... (Keep all your existing configuration logic here) ...
    
                 # Assume model config is not initialized
                 self.model_config = Config(**init_msg["model_config"])

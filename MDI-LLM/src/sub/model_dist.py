@@ -37,7 +37,7 @@ from sub.config import N_LAYERS_NODES
 from sub.gptserver import GPTServer
 from sub.typing import FileType
 from sub.utils import load_from_pt, load_from_hf_direct, split_and_store_with_finisher
-
+from sub.utils.encryption import generate_ecdh_keypair
 docstring = """
 Distributed implementation of the Llama architecture using Model-Distributed Inference
 (with pipeline parallelism).
@@ -439,31 +439,14 @@ class GPTDistributed:
     # ---------------------------------------------------------------------------------
 
     def configure_nodes(self, n_samples: int) -> int:
-        assert self.n_nodes is not None
-        if self.node_type != "starter":
-            raise ValueError("This method can only be called on starter nodes!")
-        if not self.model_config:
-            raise ValueError("The model configuration was not loaded!")
-
-        out = 1
-        prev = self.node_config["nodes"]["starter"]
+        assert self.node_type == "starter"
         
-        # Logic to determine initial next node
-        if self.n_secondary == 1:
-            next_node_config = self.node_config["nodes"]["starter"]
-        elif self.n_secondary > 1:
-            next_node_config = self.node_config["nodes"]["secondary"][1]
-        else:
-            warnings.warn("No secondary nodes found! Running standalone")
-            return out
-
-        assert self.chunk_path is not None
-        node_chunks_dir = self.chunk_path.parent
-
-        # --- ECDH Setup (Do this once effectively) ---
-        from sub.utils.encryption import generate_ecdh_keypair
-        if self.gpt_serv._ecdh_public_key is None or self.gpt_serv._ecdh_private_key is None:
-            self.gpt_serv._ecdh_private_key, self.gpt_serv._ecdh_public_key = generate_ecdh_keypair()
+        # 1. Collect Public Keys (Ring Construction)
+        print("[INIT] Phase 1: Collecting Keys...")
+        starter_pub = self.gpt_serv._serialize_public_key(self.gpt_serv._ecdh_public_key)
+        
+        # List of tuples: (Role, PubKeyBytes, Addr, Port)
+        network_ring = [("starter", starter_pub, None, None)] 
 
         # Track public keys of each node for key exchange
         # Index: node index, Value: serialized public key bytes
@@ -472,17 +455,35 @@ class GPTDistributed:
 
         # Iterate through secondary nodes
         for i, sec_node in enumerate(self.node_config["nodes"]["secondary"]):
+            addr = f"http://{sec_node['addr']}:{sec_node['communication']['port']}/key"
+            try:
+                # GET request to fetch key
+                resp = requests.get(addr, timeout=5)
+                if resp.status_code == 200:
+                    sec_key = resp.content
+                    network_ring.append((f"secondary:{i}", sec_key, sec_node['addr'], sec_node['communication']['port']))
+                    print(f"  > Collected key for Secondary {i}")
+                else:
+                    raise ConnectionError(f"Node {i} failed to return key")
+            except Exception as e:
+                print(f"Failed to reach node {i}: {e}")
+                return 0
+
+        # 2. Distribute Keys to Secondaries
+        print(f"[INIT] Phase 2: Distributing Keys...")
+        total_nodes = len(network_ring)
+        
+        for i in range(1, total_nodes):
+            curr = network_ring[i]
+            prev = network_ring[(i - 1) % total_nodes]
+            next = network_ring[(i + 1) % total_nodes]
             
-            # 1. PREPARE THE MESSAGE DATA FIRST
             curr_msg = self.init_msg.copy()
-            curr_msg["role"] = f"secondary:{i}"
+            curr_msg["role"] = curr[0]
             curr_msg["model_config"] = self.model_config.asdict()
             curr_msg["n_nodes"] = self.n_nodes
-            curr_msg["n_local_layers"] = N_LAYERS_NODES[self.n_nodes][
-                self.model_config.n_layer
-            ]["N_LAYERS_SECONDARY"]
+            curr_msg["n_local_layers"] = N_LAYERS_NODES[self.n_nodes][self.model_config.n_layer]["N_LAYERS_SECONDARY"]
             curr_msg["n_samples"] = n_samples
-            curr_msg["max_seq_length"] = self.model_seq_length
             
             # Set routing info
             curr_msg["prev_node"] = prev
@@ -506,12 +507,9 @@ class GPTDistributed:
             target_port = sec_node["communication"]["port"]
             addr = f"http://{target_addr}:{target_port}/init"
             
-            if VERB:
-                print(f"Initializing secondary node n.{i} at {addr}")
-
-            try:
-                # We use pickle to send complex Python objects
-                response = requests.post(addr, data=pickle.dumps(curr_msg), timeout=100)
+            # Routing
+            if i == 1: curr_msg["prev_node"] = self.own_config
+            else: curr_msg["prev_node"] = self.node_config["nodes"]["secondary"][i-2]
                 
                 if response.status_code == 200:
                     # 3. PROCESS RESPONSE - Receive and store this secondary's public key
@@ -542,16 +540,28 @@ class GPTDistributed:
 
             if out == 0: return 0
 
-            # 4. UPDATE POINTERS FOR NEXT ITERATION
-            prev = sec_node
-            if i == self.n_secondary - 1:  # Last node
-                next_node_config = None # Or however you handle the end of the ring
-            elif i == self.n_secondary - 2:  # Second to last
-                next_node_config = self.node_config["nodes"]["starter"]
-            else:
-                next_node_config = self.node_config["nodes"]["secondary"][i + 2]
+            # Send
+            target_url = f"http://{curr[2]}:{curr[3]}/init"
+            requests.post(target_url, data=pickle.dumps(curr_msg), timeout=100)
 
-        return out
+        # 3. Configure Starter
+        print("[INIT] Phase 3: Configuring Starter...")
+        last_node = network_ring[-1]
+        first_node = network_ring[1]
+        
+        # Starter Key IN = Last Node Public Key
+        self.gpt_serv._key_in = self.gpt_serv._derive_shared_key(
+            self.gpt_serv._ecdh_private_key, 
+            self.gpt_serv._deserialize_peer_key(last_node[1])
+        )
+        # Starter Key OUT = First Node Public Key
+        self.gpt_serv._key_out = self.gpt_serv._derive_shared_key(
+            self.gpt_serv._ecdh_private_key, 
+            self.gpt_serv._deserialize_peer_key(first_node[1])
+        )
+        
+        print("[INIT] Ring Established.")
+        return 1
     def stop_nodes(self) -> int:
         """
         Send a PUT request to all nodes triggering the application interruption.
