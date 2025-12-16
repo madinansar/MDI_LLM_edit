@@ -31,10 +31,19 @@ script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
 
 from sub.model_dist import GPTDistributed
+from sub.utils.encryption import (
+    generate_ecdh_keypair,
+    serialize_public_key,
+    deserialize_public_key,
+    derive_shared_key,
+    aes_encrypt_string,
+    aes_decrypt_string
+)
+import requests
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='[%(asctime)s] %(levelname)s: %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -132,6 +141,7 @@ def generate(request: GenerateRequest):
     Generate text based on the input prompt using distributed inference.
     
     The secondary node(s) must be running before calling this endpoint.
+    Automatically handles user-side encryption/decryption transparently.
     """
     try:
         logger.info(f"Received generation request: prompt='{request.prompt[:50]}...', max_tokens={request.max_tokens}, n_samples={request.n_samples}")
@@ -164,6 +174,39 @@ def generate(request: GenerateRequest):
             plots=False,  # Disable plots in API mode
         )
         
+        # === USER ENCRYPTION SETUP ===
+        logger.info("Setting up user-side encryption...")
+        
+        # Generate temporary user keypair for this session
+        user_private_key, user_public_key = generate_ecdh_keypair()
+        logger.info("Generated temporary user keypair")
+        
+        # Get starter's public key directly from the starter instance
+        starter_public_key = gpt_distr.gpt_serv._ecdh_private_key.public_key()
+        logger.info("Retrieved starter's public key from instance")
+        
+        # Derive shared AES key
+        aes_key = derive_shared_key(user_private_key, starter_public_key)
+        logger.info("Derived shared AES key with starter")
+        
+        # Encrypt the prompt
+        ciphertext, nonce, tag = aes_encrypt_string(request.prompt, aes_key)
+        logger.info(f"Encrypted prompt: {len(ciphertext)} bytes")
+        logger.debug(f"[ENCRYPTION DEBUG] User input encrypted:")
+        logger.debug(f"  Original prompt: '{request.prompt}'")
+        logger.debug(f"  Ciphertext (hex): {ciphertext.hex()[:100]}...")
+        logger.debug(f"  Nonce (hex): {nonce.hex()}")
+        logger.debug(f"  Tag (hex): {tag.hex()}")
+        logger.debug(f"  Total encrypted size: {len(ciphertext)} bytes")
+        
+        # Store encrypted data for passing to starter
+        encrypted_prompt_data = {
+            'user_public_key': serialize_public_key(user_public_key),
+            'ciphertext': ciphertext,
+            'nonce': nonce,
+            'tag': tag
+        }
+        
         # Run generation
         logger.info("Starting generation...")
         
@@ -173,12 +216,14 @@ def generate(request: GenerateRequest):
             raise HTTPException(status_code=500, detail="Failed to initialize network nodes")
         logger.info("Secondary nodes configured successfully")
         
-        # Launch generation directly to get both text and timing
-        logger.info("Launching generation...")
+        # TODO: Modify launch_starter to accept encrypted prompt
+        # Pass encrypted prompt data to starter
+        logger.info("Launching generation with encrypted prompt...")
         out_text, time_gen = gpt_distr.gpt_serv.launch_starter(
             request.n_samples,
             request.max_tokens,
-            request.prompt
+            prompt=None,  # Don't use plaintext
+            encrypted_prompt=encrypted_prompt_data  # Use encrypted data
         )
         
         # Extract generation time
@@ -187,6 +232,16 @@ def generate(request: GenerateRequest):
             generation_time = time_gen[-1][1]
         
         logger.info(f"Generation completed in {generation_time:.2f}s" if generation_time else "Generation completed")
+        
+        # TODO: When starter returns encrypted response, decrypt here
+        # For now, response is plaintext
+        # Example for future implementation:
+        # logger.debug(f"[ENCRYPTION DEBUG] Response encrypted for user:")
+        # logger.debug(f"  Response ciphertext (hex): {response_ciphertext.hex()[:100]}...")
+        # logger.debug(f"  Response nonce (hex): {response_nonce.hex()}")
+        # logger.debug(f"  Response tag (hex): {response_tag.hex()}")
+        # decrypted_response = aes_decrypt_string(encrypted_response, nonce_out, tag_out, aes_key)
+        # logger.debug(f"  Decrypted response: '{decrypted_response[:100]}...'")
         
         # Stop nodes
         logger.info("Stopping nodes...")
@@ -199,6 +254,8 @@ def generate(request: GenerateRequest):
             model=gpt_distr.full_model_name
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Generation failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")

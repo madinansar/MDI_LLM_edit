@@ -70,6 +70,24 @@ def deserialize_public_key(public_bytes):
     return serialization.load_pem_public_key(public_bytes, backend=default_backend())
 
 
+def serialize_private_key(private_key):
+    """Serialize private key to PEM format"""
+    return private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+
+
+def deserialize_private_key(private_bytes):
+    """Deserialize private key from PEM format"""
+    return serialization.load_pem_private_key(
+        private_bytes, 
+        password=None, 
+        backend=default_backend()
+    )
+
+
 def derive_shared_key(private_key, peer_public_key):
     shared_secret = private_key.exchange(ec.ECDH(), peer_public_key)
     # Derive a 32-byte AES key from the shared secret
@@ -81,3 +99,24 @@ def derive_shared_key(private_key, peer_public_key):
         backend=default_backend(),
     ).derive(shared_secret)
     return derived_key
+
+
+def aes_encrypt_string(plaintext: str, key: bytes) -> tuple:
+    """
+    Encrypt a string using AES-GCM.
+    Returns (ciphertext, nonce, tag)
+    """
+    nonce = os.urandom(12)
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    ciphertext, tag = cipher.encrypt_and_digest(plaintext.encode('utf-8'))
+    return ciphertext, nonce, tag
+
+
+def aes_decrypt_string(ciphertext: bytes, nonce: bytes, tag: bytes, key: bytes) -> str:
+    """
+    Decrypt a string using AES-GCM.
+    Returns the plaintext string.
+    """
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    plaintext = cipher.decrypt_and_verify(ciphertext, tag)
+    return plaintext.decode('utf-8')

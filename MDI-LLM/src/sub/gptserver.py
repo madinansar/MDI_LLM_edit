@@ -373,7 +373,8 @@ class GPTServer:
 
     # ---------------------------------------------------------------------------------
     def launch_starter(
-        self, n_samples: int, max_tokens: int, prompt: Optional[str] = None
+        self, n_samples: int, max_tokens: int, prompt: Optional[str] = None,
+        encrypted_prompt: Optional[dict] = None
     ) -> Tuple[List[str], List[Tuple[int, float]]]:
         """
         Launch processing thread in starter node.
@@ -385,6 +386,8 @@ class GPTServer:
             n_samples: number of produced samples (pieces of text)
             max_tokens: max. number of tokens per sample
             prompt: prompt from command line argument (can be prompt itself or FILE:...)
+            encrypted_prompt: dict with keys 'user_public_key', 'ciphertext', 'nonce', 'tag'
+                             for encrypted prompt from FastAPI
 
         Returns:
             generated text samples (list of strings)
@@ -400,6 +403,7 @@ class GPTServer:
             kwargs={
                 "max_new_tokens": max_tokens,
                 "prompt": prompt,
+                "encrypted_prompt": encrypted_prompt,
                 "metrics": metrics_dict,
             },
         )
@@ -416,6 +420,7 @@ class GPTServer:
         *,
         max_new_tokens: Optional[int] = None,
         prompt: Optional[str] = None,
+        encrypted_prompt: Optional[dict] = None,
         metrics: Optional[Dict] = None,
     ):
         """
@@ -442,6 +447,7 @@ class GPTServer:
             max_new_tokens (starter only): maximum number of tokens per generated
                 sample
             prompt (starter only): string containing the prompt or "FILE:<filename.txt>"
+            encrypted_prompt (starter only): dict with encrypted prompt data from FastAPI
             metrics (starter only): dict where the metrics will be inserted (keys:
                 "gen_text" and "gen_time")
         """
@@ -472,7 +478,7 @@ class GPTServer:
             logger_wp.info("Starting generation loop")
 
             out_text, gen_time = self._starter_loop(
-                n_samples, prompt, max_new_tokens=max_new_tokens
+                n_samples, prompt, encrypted_prompt=encrypted_prompt, max_new_tokens=max_new_tokens
             )
 
             if metrics is not None:
@@ -870,7 +876,8 @@ class GPTServer:
     # ---- Main Loops -----------------------------------------------------------------
 
     def _starter_loop(
-        self, n_samples: int, prompt: Optional[str] = None, **kwargs
+        self, n_samples: int, prompt: Optional[str] = None, 
+        encrypted_prompt: Optional[dict] = None, **kwargs
     ) -> Tuple[List[str], List[Tuple[int, float]]]:
         """
         Generation loop for the starter node only.
@@ -879,6 +886,8 @@ class GPTServer:
             n_samples: number of produced samples
             prompt: either the prompt itself or a string of the type "FILE:<prompt.txt>"
                 containing each prompt as a separate paragraph
+            encrypted_prompt: dict with 'user_public_key', 'ciphertext', 'nonce', 'tag'
+                for encrypted prompts from FastAPI
 
         Returns:
             list containing the `n_nodes` generated samples
@@ -886,6 +895,34 @@ class GPTServer:
         """
         assert self.model_config is not None and self.model is not None
         assert self.model_device is not None
+
+        # Handle encrypted prompt if provided
+        if encrypted_prompt is not None:
+            if self.verb:
+                print("[INFO] Decrypting user prompt...")
+            
+            # Deserialize user's public key
+            from .utils.encryption import (
+                deserialize_public_key,
+                derive_shared_key,
+                aes_decrypt_string
+            )
+            
+            user_public_key = deserialize_public_key(encrypted_prompt['user_public_key'])
+            
+            # Derive shared key using starter's private key
+            aes_key = derive_shared_key(self._ecdh_private_key, user_public_key)
+            
+            # Decrypt the prompt
+            prompt = aes_decrypt_string(
+                encrypted_prompt['ciphertext'],
+                encrypted_prompt['nonce'],
+                encrypted_prompt['tag'],
+                aes_key
+            )
+            
+            if self.verb:
+                print(f"[INFO] Decrypted prompt: '{prompt[:50]}...'")
 
         #
         # TODO
@@ -1534,9 +1571,31 @@ class GPTServer:
         Functions
             Return node information (port numbers, [capabilities]?)
             Used for pinging "neighbor" nodes
+            
+        New endpoints:
+            /public_key - Return ECDH public key (for user-side encryption)
+            /key - Return ECDH public key (for node-to-node key exchange)
         """
-        if len(path) == 0:
+        if len(path) > 0 and path[0] == "public_key":
+            # Return public key for user-side encryption
+            if self.node_type == "starter":
+                cp.response.status = 200
+                cp.response.headers['Content-Type'] = 'application/octet-stream'
+                return self._serialize_public_key(self._ecdh_public_key)
+            else:
+                raise cp.HTTPError(404, "Public key only available on starter node")
+        
+        elif len(path) > 0 and path[0] == "key":
+            # Return public key for node-to-node key exchange
+            cp.response.status = 200
+            cp.response.headers['Content-Type'] = 'application/octet-stream'
+            return self._serialize_public_key(self._ecdh_public_key)
+        
+        elif len(path) == 0:
             return json.dumps(self.node_config)
+        
+        else:
+            raise cp.HTTPError(404, "Not found")
 
     def POST(self, *path, **params):
         """
