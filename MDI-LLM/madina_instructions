@@ -185,3 +185,13 @@ python3.10 src/fastapi_gateway.py \
 --ckpt ./src/checkpoints/Qwen/Qwen3-1.7B \
 --nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
 --sequence-length 1024
+
+
+Problems so far (17.12.25)
+done: 1. Delete SCALE, do direct tensor encryption, without quantization
+2. I amlicusing same p  key -> same aes key between nodes. this should be chnaged once very period (say 1 hour)
+Data limit: Rotate the key well before you hit the theoretical danger zone. 1 GB is a safe, conservative limit that virtually eliminates collision risk.
+Time limit(Forward Secrecy):  1hour
+3.API tokens or JWT authentication
+Rate limiting per user
+

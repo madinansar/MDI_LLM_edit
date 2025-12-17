@@ -621,10 +621,11 @@ class GPTServer:
         """
         # HYBRID SETUP FIX: Ensure all tensors are moved to CPU before transmission.
         # This prevents "Device Mismatch" errors (e.g. sending MPS tensor to CUDA machine).
-        if isinstance(data, torch.Tensor):
+        # Performance optimization: only transfer if not already on CPU
+        if isinstance(data, torch.Tensor) and data.device.type != 'cpu':
             data = data.cpu()
         
-        if isinstance(tokens, torch.Tensor):
+        if isinstance(tokens, torch.Tensor) and tokens.device.type != 'cpu':
             tokens = tokens.cpu()
 
         msg = {"sample_index": sample_index, "data": data, "stop": stop}
