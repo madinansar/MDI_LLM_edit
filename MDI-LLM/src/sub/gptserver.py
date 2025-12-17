@@ -51,8 +51,12 @@ from sub.utils import (catch_loop_errors, count_transformer_blocks,
                        load_sd, plot_tokens_per_time, truncate_to_complete_answer,
                        waiting_animation)
 from sub.submodels import SecondaryNode, StarterNode, FinisherNode #madina
-from sub.utils.encryption import aes_encrypt_tensor_quantized, aes_decrypt_tensor_quantized
+from sub.utils.encryption import (aes_encrypt_tensor_quantized, aes_decrypt_tensor_quantized,
+                                   generate_ecdh_keypair, serialize_public_key, 
+                                   deserialize_public_key, derive_shared_key)
 
+from datetime import datetime
+import traceback
 import nltk
 nltk.download('stopwords')
 
@@ -66,6 +70,9 @@ logger_wp.setLevel(logging.ERROR)
 
 VERB = False
 PLOTS = False
+
+# Encryption flag - set via environment variable ENABLE_ENCRYPTION=0 to disable
+ENABLE_ENCRYPTION = os.environ.get('ENABLE_ENCRYPTION', '1') == '1'
 
 
 class GPTServer:
@@ -136,6 +143,19 @@ class GPTServer:
 
     # Stats - n. tokens/time (tuples)
     tok_time: List = []
+    
+    # Encryption timing stats
+    encryption_time_total: float = 0.0
+    decryption_time_total: float = 0.0
+    encryption_count: int = 0
+    decryption_count: int = 0
+    
+    # Overall operation timing
+    setup_start_time: float = 0.0
+    setup_end_time: float = 0.0
+    generation_start_time: float = 0.0
+    generation_end_time: float = 0.0
+    token_times: List[Tuple[int, float, float]] = []  # (token_num, timestamp, time_since_start)
 
     # Threads
     inference_thread = threading.Thread()
@@ -198,18 +218,27 @@ class GPTServer:
         self.node_config = node_config
         
         # ---------------------------------------------------------------------
-        # 2. KEY GENERATION (Moved from the deleted __init__)
+        # 2. KEY GENERATION (Conditional on ENABLE_ENCRYPTION flag)
         # ---------------------------------------------------------------------
-        from sub.utils.encryption import generate_ecdh_keypair, serialize_public_key, deserialize_public_key, derive_shared_key
-        self._ecdh_private_key, self._ecdh_public_key = generate_ecdh_keypair()
-        
-        if self.verb:
-            print("[DEBUG] ECDH private key generated:", self._ecdh_private_key)
-            print("[DEBUG] ECDH public key generated:", self._ecdh_public_key)
+        if ENABLE_ENCRYPTION:
+            self._ecdh_private_key, self._ecdh_public_key = generate_ecdh_keypair()
             
-        self._serialize_public_key = serialize_public_key
-        self._deserialize_peer_key = deserialize_public_key
-        self._derive_shared_key = derive_shared_key
+            if self.verb:
+                print("[DEBUG] ECDH private key generated:", self._ecdh_private_key)
+                print("[DEBUG] ECDH public key generated:", self._ecdh_public_key)
+                
+            self._serialize_public_key = serialize_public_key
+            self._deserialize_peer_key = deserialize_public_key
+            self._derive_shared_key = derive_shared_key
+        else:
+            # No encryption - initialize to None
+            self._ecdh_private_key = None
+            self._ecdh_public_key = None
+            self._serialize_public_key = None
+            self._deserialize_peer_key = None
+            self._derive_shared_key = None
+            if self.verb:
+                print("[DEBUG] Encryption disabled - skipping ECDH key generation")
         
         # Separate keys for incoming and outgoing encryption
         self._prev_node_public_key = None  # Public key from previous node
@@ -392,6 +421,10 @@ class GPTServer:
         """
         if self.role != "starter":
             raise ValueError(f"Cannot run `launch_starter` for node type {self.role}")
+        
+        # Start generation timing
+        self.generation_start_time = time.perf_counter()
+        
         metrics_dict = {}
         self.n_samples = n_samples
         self.inference_thread = threading.Thread(
@@ -785,10 +818,9 @@ class GPTServer:
             except RuntimeError as e:
                 warnings.warn(f"Unable to compile model! {e}")
         elif self.compile and not hasattr(torch, "compile"):
-            from importlib.metadata import version
-
+            import importlib.metadata
             warnings.warn(
-                f"Installed torch version ({version('torch')}) does not support compiling models"
+                f"Installed torch version ({importlib.metadata.version('torch')}) does not support compiling models"
             )
 
         del model_parameters
@@ -1008,7 +1040,7 @@ class GPTServer:
                         
                         # DECRYPT data from finisher (ring topology)
                         data = in_msg["data"]
-                        if isinstance(data, dict) and all(k in data for k in ("ciphertext", "nonce", "tag", "shape", "dtype")):
+                        if ENABLE_ENCRYPTION and isinstance(data, dict) and all(k in data for k in ("ciphertext", "nonce", "tag", "shape", "dtype")):
                             # Encrypted data from finisher - decrypt it
                             if self._aes_key_in is None:
                                 raise RuntimeError("Starter: AES key_in not established with finisher.")
@@ -1018,6 +1050,8 @@ class GPTServer:
                                 print(f"  Using _aes_key_in: {self._aes_key_in[:16].hex()}...")
                                 print(f"  Ciphertext length: {len(data['ciphertext'])} bytes")
                             
+                            # Time decryption
+                            dec_start = time.perf_counter()
                             idx = aes_decrypt_tensor_quantized(
                                 data["ciphertext"],
                                 data["nonce"],
@@ -1027,13 +1061,17 @@ class GPTServer:
                                 self._aes_key_in,
                                 device=self.torch_model_device
                             )
+                            dec_time = time.perf_counter() - dec_start
+                            self.decryption_time_total += dec_time
+                            self.decryption_count += 1
                             
                             if VERB:
                                 print(f"  [DECRYPT SUCCESS] Decrypted to shape: {idx.shape}, dtype: {idx.dtype}")
-                                print(f"  Token ID: {idx.item()}\n")
+                                print(f"  Token ID: {idx.item()}")
+                                print(f"  [TIMING] Decryption took {dec_time*1000:.3f}ms\n")
                         else:
-                            # Unencrypted data (first iteration or error)
-                            idx = data.to(self.model_device)
+                            # Unencrypted data (first iteration or no encryption)
+                            idx = data.to(self.model_device) if isinstance(data, torch.Tensor) else data
                         
                         stopping_detected = False
 
@@ -1139,6 +1177,12 @@ class GPTServer:
 
                             # Only add new token after it has been generated
                             n_tokens += 1
+                            current_time = time.perf_counter()
+                            token_gen_time = current_time - start_time
+                            
+                            # Track per-token timing
+                            self.token_times.append((n_tokens, current_time, token_gen_time))
+                            
                             if PLOTS:
                                 self.tok_time.append(
                                     (n_tokens, time.time() - start_time)
@@ -1172,39 +1216,53 @@ class GPTServer:
                             if idx_cond.dtype != self.ptdtype:
                                 idx_cond = idx_cond.to(dtype=self.ptdtype)
 
-                            # Use ECDH-derived key for encryption to NEXT node
-                            if self._aes_key_out is None:
-                                raise RuntimeError("AES key_out not established. ECDH handshake with next node required.")
-                            
-                            # DEBUG: Log key info before encryption
-                            if self.verb:
-                                print(f"\n[ENCRYPT TO NEXT] About to encrypt")
-                                print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
-                                print(f"  Data shape: {idx_cond.shape}, dtype: {idx_cond.dtype}")
-                            
-                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(idx_cond, self._aes_key_out)
-                            # === LOG Encrypted garbage value ===
-                            if self.verb:
-                                # Print the first 64 characters (32 bytes) of the ciphertext in Hex
-                                print(f"  [DEBUG CIPHERTEXT] {ciphertext[:32].hex()}...") 
-                            # ================
-                            encrypted_payload = {
-                                'ciphertext': ciphertext,
-                                'nonce': nonce,
-                                'tag': tag,
-                                'shape': shape,
-                                'dtype': dtype_name
-                            }
-
-                            # DEBUG: Show data being sent from starter
-                            if VERB:
-                                print(f"\n{'='*80}")
-                                print(f"[SENDING ENCRYPTED] Sample {sample_id}, Iter {self.iter_ind[sample_id]}")
-                                print(f"  Encrypted data length: {len(ciphertext)}")
-                                print(f"  Nonce: {nonce.hex()}")
-                                print(f"  Tag: {tag.hex()}")
-                                print(f"  Shape: {shape}, Dtype: {dtype_name}")
-                                print(f"{'='*80}\n")
+                            # Conditional encryption based on ENABLE_ENCRYPTION flag
+                            if ENABLE_ENCRYPTION:
+                                # Use ECDH-derived key for encryption to NEXT node
+                                if self._aes_key_out is None:
+                                    raise RuntimeError("AES key_out not established. ECDH handshake with next node required.")
+                                
+                                # DEBUG: Log key info before encryption
+                                if self.verb:
+                                    print(f"\n[ENCRYPT TO NEXT] About to encrypt")
+                                    print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
+                                    print(f"  Data shape: {idx_cond.shape}, dtype: {idx_cond.dtype}")
+                                
+                                # Time encryption
+                                enc_start = time.perf_counter()
+                                ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(idx_cond, self._aes_key_out)
+                                enc_time = time.perf_counter() - enc_start
+                                self.encryption_time_total += enc_time
+                                self.encryption_count += 1
+                                
+                                # === LOG Encrypted garbage value ===
+                                if self.verb:
+                                    # Print the first 64 characters (32 bytes) of the ciphertext in Hex
+                                    print(f"  [DEBUG CIPHERTEXT] {ciphertext[:32].hex()}...") 
+                                    print(f"  [TIMING] Encryption took {enc_time*1000:.3f}ms")
+                                
+                                    # DEBUG: Show encrypted data being sent
+                                    print(f"\n{'='*80}")
+                                    print(f"[SENDING ENCRYPTED] Sample {sample_id}, Iter {self.iter_ind[sample_id]}")
+                                    print(f"  Encrypted data length: {len(ciphertext)}")
+                                    print(f"  Nonce: {nonce.hex()}")
+                                    print(f"  Tag: {tag.hex()}")
+                                    print(f"  Shape: {shape}, Dtype: {dtype_name}")
+                                    print(f"{'='*80}\n")
+                                # ================
+                                encrypted_payload = {
+                                    'ciphertext': ciphertext,
+                                    'nonce': nonce,
+                                    'tag': tag,
+                                    'shape': shape,
+                                    'dtype': dtype_name
+                                }
+                            else:
+                                # No encryption - send raw tensor
+                                encrypted_payload = idx_cond
+                                if VERB:
+                                    print(f"\n[SENDING UNENCRYPTED] Sample {sample_id}, Iter {self.iter_ind[sample_id]}")
+                                    print(f"  Data shape: {idx_cond.shape}, dtype: {idx_cond.dtype}\n")
 
                             # Send message (include tokens for secondary node to decode)
                             out_msg = self._build_msg(encrypted_payload, sample_id, tokens=self.samples[sample_id])
@@ -1229,6 +1287,20 @@ class GPTServer:
         if VERB:
             print("[INFO] Generation completed!                          ")
         logger_wp.info("Generation completed")
+        
+        # End generation timing
+        self.generation_end_time = time.perf_counter()
+        
+        # Calculate timing metrics
+        setup_time = self.setup_end_time - self.setup_start_time if self.setup_end_time > 0 else 0
+        generation_time = self.generation_end_time - self.generation_start_time
+        total_time = (self.generation_end_time - self.setup_start_time) if self.setup_start_time > 0 else generation_time
+        
+        # Print simplified timing report
+        print(f"\n[LATENCY REPORT]")
+        print(f"  Setup time (init + config + encryption):     {setup_time:.3f}s ")
+        print(f"  Generation time:                {generation_time:.3f}s ")
+        print(f"  Total end-to-end time:          {total_time:.3f}s \n")
 
         out_truncated = [
             find_eot(smp, self.stop_tokens, self.prompt_lengths[i])
@@ -1311,7 +1383,7 @@ class GPTServer:
 
                         # DECRYPT activations received from previous node
                         data = in_msg["data"]
-                        if isinstance(data, dict) and all(k in data for k in ("ciphertext", "nonce", "tag", "shape", "dtype")):
+                        if ENABLE_ENCRYPTION and isinstance(data, dict) and all(k in data for k in ("ciphertext", "nonce", "tag", "shape", "dtype")):
                             # DEBUG: Log key info before decryption
                             if self.verb:
                                 print(f"\n[DECRYPT FROM PREVIOUS] About to decrypt")
@@ -1319,6 +1391,8 @@ class GPTServer:
                                 print(f"  Ciphertext length: {len(data['ciphertext'])} bytes")
                                 print(f"  Expected shape: {data['shape']}, dtype: {data['dtype']}")
                             
+                            # Time decryption
+                            dec_start = time.perf_counter()
                             idx = aes_decrypt_tensor_quantized(
                                 data["ciphertext"],
                                 data["nonce"],
@@ -1328,11 +1402,19 @@ class GPTServer:
                                 self._aes_key_in,
                                 device=self.torch_model_device
                             )
+                            dec_time = time.perf_counter() - dec_start
+                            self.decryption_time_total += dec_time
+                            self.decryption_count += 1
                             
                             if self.verb:
                                 print(f"  [DECRYPT SUCCESS] Decrypted to shape: {idx.shape}, dtype: {idx.dtype}")
+                                print(f"  [TIMING] Decryption took {dec_time*1000:.3f}ms")
                         else:
-                            idx = data.to(device=self.torch_model_device, dtype=self.ptdtype)
+                            # Optimization: Only move/convert if necessary
+                            if data.device != self.torch_model_device or data.dtype != self.ptdtype:
+                                idx = data.to(device=self.torch_model_device, dtype=self.ptdtype)
+                            else:
+                                idx = data
                         
                         # DEBUG: Show what secondary node received
                         if VERB:
@@ -1388,8 +1470,7 @@ class GPTServer:
                              idx_next = sample(outs, temperature=self.temperature, top_k=self.top_k, vocab_size=self.model_config.vocab_size)
                              
                              # [LOGGING REQUEST] Log the exact generation time
-                             import datetime
-                             current_time = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                             current_time = datetime.now().strftime("%H:%M:%S.%f")
                              print(f"\n[TOKEN GENERATED] at {current_time}")
                              print(f"[TOKEN ID] {idx_next.item()}\n")
                              
@@ -1441,26 +1522,38 @@ class GPTServer:
                              # Use idx_next as outs for encryption and sending
                              outs = idx_next
                              
-                             # ENCRYPT token back to starter (ring topology)
-                             if self._aes_key_out is None:
-                                 raise RuntimeError("Finisher: AES key_out not established with starter.")
-                             
-                             if VERB:
-                                 print(f"\n[ENCRYPT TO STARTER] Encrypting token")
-                                 print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
-                                 print(f"  Token ID: {idx_next.item()}, dtype: {idx_next.dtype}")
-                             
-                             ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(outs, self._aes_key_out)
-                             encrypted_payload = {
-                                 'ciphertext': ciphertext,
-                                 'nonce': nonce,
-                                 'tag': tag,
-                                 'shape': shape,
-                                 'dtype': dtype_name
-                             }
-                             
-                             if VERB:
-                                 print(f"[ENCRYPTED] Length: {len(ciphertext)}, Nonce: {nonce.hex()[:16]}..., Tag: {tag.hex()[:16]}...\n")
+                             # Conditional encryption for finisher->starter
+                             if ENABLE_ENCRYPTION:
+                                 # ENCRYPT token back to starter (ring topology)
+                                 if self._aes_key_out is None:
+                                     raise RuntimeError("Finisher: AES key_out not established with starter.")
+                                 
+                                 if VERB:
+                                     print(f"\n[ENCRYPT TO STARTER] Encrypting token")
+                                     print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
+                                     print(f"  Token ID: {idx_next.item()}, dtype: {idx_next.dtype}")
+                                 
+                                 # Time encryption
+                                 enc_start = time.perf_counter()
+                                 ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(outs, self._aes_key_out)
+                                 enc_time = time.perf_counter() - enc_start
+                                 self.encryption_time_total += enc_time
+                                 self.encryption_count += 1
+                                 
+                                 encrypted_payload = {
+                                     'ciphertext': ciphertext,
+                                     'nonce': nonce,
+                                     'tag': tag,
+                                     'shape': shape,
+                                     'dtype': dtype_name
+                                 }
+                                 
+                                 if VERB:
+                                     print(f"[ENCRYPTED] Length: {len(ciphertext)}, Nonce: {nonce.hex()[:16]}..., Tag: {tag.hex()[:16]}...")
+                                     print(f"[TIMING] Encryption took {enc_time*1000:.3f}ms\n")
+                             else:
+                                 # No encryption - send raw token
+                                 encrypted_payload = outs
                              
                              # Send encrypted token to starter
                              out_msg = self._build_msg(encrypted_payload, sample_id)
@@ -1491,24 +1584,38 @@ class GPTServer:
 
                         # ENCRYPT activations before sending to next node (if not FinisherNode)
                         if not isinstance(self.model, FinisherNode):
-                            if self._aes_key_out is None:
-                                raise RuntimeError("AES key_out not established. ECDH handshake with next node required.")
-                            
-                            # DEBUG: Log key info before encryption
-                            if self.verb:
-                                print(f"\n[ENCRYPT TO NEXT] About to encrypt")
-                                print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
-                                print(f"  Data shape: {outs.shape}, dtype: {outs.dtype}")
-                            
-                            ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(outs, self._aes_key_out)
-                            encrypted_payload = {
-                                'ciphertext': ciphertext,
-                                'nonce': nonce,
-                                'tag': tag,
-                                'shape': shape,
-                                'dtype': dtype_name
-                            }
-                            outs_to_send = encrypted_payload
+                            if ENABLE_ENCRYPTION:
+                                if self._aes_key_out is None:
+                                    raise RuntimeError("AES key_out not established. ECDH handshake with next node required.")
+                                
+                                # DEBUG: Log key info before encryption
+                                if self.verb:
+                                    print(f"\n[ENCRYPT TO NEXT] About to encrypt")
+                                    print(f"  Using _aes_key_out: {self._aes_key_out[:16].hex()}...")
+                                    print(f"  Data shape: {outs.shape}, dtype: {outs.dtype}")
+                                
+                                # Time encryption
+                                enc_start = time.perf_counter()
+                                ciphertext, nonce, tag, shape, dtype_name = aes_encrypt_tensor_quantized(outs, self._aes_key_out)
+                                enc_time = time.perf_counter() - enc_start
+                                self.encryption_time_total += enc_time
+                                self.encryption_count += 1
+                                
+                                encrypted_payload = {
+                                    'ciphertext': ciphertext,
+                                    'nonce': nonce,
+                                    'tag': tag,
+                                    'shape': shape,
+                                    'dtype': dtype_name
+                                }
+                                
+                                if self.verb:
+                                    print(f"  [TIMING] Encryption took {enc_time*1000:.3f}ms")
+                                
+                                outs_to_send = encrypted_payload
+                            else:
+                                # No encryption - send raw activations
+                                outs_to_send = outs
                         else:
                             outs_to_send = outs
 
@@ -1560,6 +1667,11 @@ class GPTServer:
         # This must be accessible to the STARTER node, so it's outside the secondary-only block
         # ---------------------------------------------------------
         if len(path) > 0 and path[0] == "exchange_key_ring":
+            if not ENABLE_ENCRYPTION:
+                # If encryption is disabled, just return empty bytes
+                cp.response.status = 200
+                return b''
+            
             if self.verb:
                 print(f"[DEBUG] /exchange_key_ring: Finisher requesting key exchange")
             
@@ -1599,12 +1711,12 @@ class GPTServer:
                 init_msg = pickle.loads(cp.request.body.read())
 
                 # ---------------------------------------------------------
-                # NEW CODE: Handle ECDH Handshake with Previous Node
+                # NEW CODE: Handle ECDH Handshake with Previous Node (conditional)
                 # ---------------------------------------------------------
                 # Extract the previous node's Public Key
                 prev_pub_key_bytes = init_msg.get("ecdh_public_key")
                 
-                if prev_pub_key_bytes:
+                if ENABLE_ENCRYPTION and prev_pub_key_bytes:
                     if self.verb:
                         print(f"[DEBUG] Received Previous Node Public Key ({len(prev_pub_key_bytes)} bytes)")
                     
@@ -1618,6 +1730,8 @@ class GPTServer:
                     except Exception as e:
                         print(f"[ERROR] ECDH key_in Derivation failed: {e}")
                         raise cp.HTTPError(500, f"Crypto Handshake Failed: {e}")
+                elif not ENABLE_ENCRYPTION and self.verb:
+                    print(f"[DEBUG] Encryption disabled - skipping key exchange")
                 # ---------------------------------------------------------
 
                 if self.node_type is None:
@@ -1682,10 +1796,10 @@ class GPTServer:
                 self.inference_thread.start()
 
                 # ---------------------------------------------------------
-                # Key Exchange with NEXT Node (establish key_out for outgoing)
+                # Key Exchange with NEXT Node (establish key_out for outgoing) - conditional
                 # ---------------------------------------------------------
-                # Only do this if we're not the finisher (finisher has no next node to encrypt to)
-                if self.next_node is not None and not isinstance(self.model, FinisherNode):
+                # Only do this if encryption is enabled and we're not the finisher
+                if ENABLE_ENCRYPTION and self.next_node is not None and not isinstance(self.model, FinisherNode):
                     try:
                         next_addr = self.next_node["addr"]
                         next_port = self.next_node["communication"]["port"]
@@ -1712,7 +1826,7 @@ class GPTServer:
                     except Exception as e:
                         print(f"[ERROR] Failed to exchange keys with next node: {e}")
                         raise
-                elif isinstance(self.model, FinisherNode):
+                elif ENABLE_ENCRYPTION and isinstance(self.model, FinisherNode):
                     # Finisher establishes key_out with starter to close the ring
                     starter_url = f"http://{self.next_node['addr']}:{self.next_node['communication']['port']}/exchange_key_ring"
                     if self.verb:
@@ -1739,7 +1853,6 @@ class GPTServer:
                     except Exception as e:
                         error_msg = f"Finisher key exchange failed: {e}"
                         print(f"[ERROR] {error_msg}")
-                        import traceback
                         traceback.print_exc()
                         raise
                 # ---------------------------------------------------------
@@ -1750,7 +1863,10 @@ class GPTServer:
                 cp.response.status = 200
                 
                 # We must return our public key so the previous node can derive key_out
-                my_pub_key_bytes = self._serialize_public_key(self._ecdh_public_key)
+                if ENABLE_ENCRYPTION:
+                    my_pub_key_bytes = self._serialize_public_key(self._ecdh_public_key)
+                else:
+                    my_pub_key_bytes = b''  # Return empty bytes when encryption disabled
                 return my_pub_key_bytes 
                 # ---------------------------------------------------------
 
@@ -1760,6 +1876,11 @@ class GPTServer:
                 # ---------------------------------------------------------
                 # This endpoint is called by the previous node to exchange keys
                 # We receive their public key and return ours
+                
+                if not ENABLE_ENCRYPTION:
+                    # If encryption is disabled, just return empty bytes
+                    cp.response.status = 200
+                    return b''
                 
                 prev_pub_key_bytes = cp.request.body.read()
                 

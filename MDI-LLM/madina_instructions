@@ -116,13 +116,14 @@ python3.10 src/fastapi_gateway.py --ckpt ./src/checkpoints/Qwen/Qwen3-0.6B --nod
 
 
 Qwen 2 nodes:
+ENABLE_ENCRYPTION=0 \
 python3.10 ./src/secondary.py \
 --chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/2nodes_finisher/model_secondary0.pth \
 --nodes-config ./src/settings_distr/config_2nodes_cpu.json 0 \
 --dtype bfloat16 \
 -v
 
-
+ENABLE_ENCRYPTION=0 \
 python3.10 src/fastapi_gateway.py \
 --host 0.0.0.0 \
 --port 8000 \

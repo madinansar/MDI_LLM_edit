@@ -38,6 +38,9 @@ from sub.gptserver import GPTServer
 from sub.typing import FileType
 from sub.utils import load_from_pt, load_from_hf_direct, split_and_store_with_finisher
 
+# Import encryption flag
+ENABLE_ENCRYPTION = int(os.getenv("ENABLE_ENCRYPTION", "1"))
+
 docstring = """
 Distributed implementation of the Llama architecture using Model-Distributed Inference
 (with pipeline parallelism).
@@ -439,6 +442,10 @@ class GPTDistributed:
     # ---------------------------------------------------------------------------------
 
     def configure_nodes(self, n_samples: int) -> int:
+        import time
+        # Start setup timing
+        self.gpt_serv.setup_start_time = time.perf_counter()
+        
         assert self.n_nodes is not None
         if self.node_type != "starter":
             raise ValueError("This method can only be called on starter nodes!")
@@ -460,15 +467,18 @@ class GPTDistributed:
         assert self.chunk_path is not None
         node_chunks_dir = self.chunk_path.parent
 
-        # --- ECDH Setup (Do this once effectively) ---
-        from sub.utils.encryption import generate_ecdh_keypair
-        if self.gpt_serv._ecdh_public_key is None or self.gpt_serv._ecdh_private_key is None:
-            self.gpt_serv._ecdh_private_key, self.gpt_serv._ecdh_public_key = generate_ecdh_keypair()
+        # --- ECDH Setup (Conditional on ENABLE_ENCRYPTION) ---
+        if ENABLE_ENCRYPTION:
+            from sub.utils.encryption import generate_ecdh_keypair
+            if self.gpt_serv._ecdh_public_key is None or self.gpt_serv._ecdh_private_key is None:
+                self.gpt_serv._ecdh_private_key, self.gpt_serv._ecdh_public_key = generate_ecdh_keypair()
 
-        # Track public keys of each node for key exchange
-        # Index: node index, Value: serialized public key bytes
-        node_public_keys = {}
-        node_public_keys['starter'] = self.gpt_serv._serialize_public_key(self.gpt_serv._ecdh_public_key)
+            # Track public keys of each node for key exchange
+            # Index: node index, Value: serialized public key bytes
+            node_public_keys = {}
+            node_public_keys['starter'] = self.gpt_serv._serialize_public_key(self.gpt_serv._ecdh_public_key)
+        else:
+            node_public_keys = None
 
         # Iterate through secondary nodes
         for i, sec_node in enumerate(self.node_config["nodes"]["secondary"]):
@@ -488,14 +498,17 @@ class GPTDistributed:
             curr_msg["prev_node"] = prev
             curr_msg["next_node"] = next_node_config
 
-            # Attach PREVIOUS node's public key (for establishing key_in)
-            # Secondary 0 gets starter's key, Secondary 1 gets Secondary 0's key, etc.
-            if i == 0:
-                prev_pub_key = node_public_keys['starter']
+            # Attach PREVIOUS node's public key (for establishing key_in) - only if encryption enabled
+            if ENABLE_ENCRYPTION:
+                # Secondary 0 gets starter's key, Secondary 1 gets Secondary 0's key, etc.
+                if i == 0:
+                    prev_pub_key = node_public_keys['starter']
+                else:
+                    prev_pub_key = node_public_keys[i - 1]
+                
+                curr_msg['ecdh_public_key'] = prev_pub_key
             else:
-                prev_pub_key = node_public_keys[i - 1]
-            
-            curr_msg['ecdh_public_key'] = prev_pub_key
+                curr_msg['ecdh_public_key'] = None
 
             if not self.model_was_split:
                 chunk_path = node_chunks_dir / f"model_secondary{i}.pth"
@@ -516,21 +529,25 @@ class GPTDistributed:
                 if response.status_code == 200:
                     # 3. PROCESS RESPONSE - Receive and store this secondary's public key
                     sec_pubkey_bytes = response.content
-                    node_public_keys[i] = sec_pubkey_bytes  # Store for next iteration
                     
-                    # Only derive key_out for the FIRST secondary (starter's next node)
-                    if i == 0:
-                        self.gpt_serv._next_node_public_key = self.gpt_serv._deserialize_peer_key(sec_pubkey_bytes)
-                        self.gpt_serv._aes_key_out = self.gpt_serv._derive_shared_key(
-                            self.gpt_serv._ecdh_private_key, 
-                            self.gpt_serv._next_node_public_key
-                        )
+                    if ENABLE_ENCRYPTION:
+                        node_public_keys[i] = sec_pubkey_bytes  # Store for next iteration
                         
-                        # Always print this for debugging
-                        print(f"> Success! key_out (for encryption) derived for secondary {i}.")
-                        print(f"[DEBUG STARTER] key_out = {self.gpt_serv._aes_key_out[:16].hex()}...")
+                        # Only derive key_out for the FIRST secondary (starter's next node)
+                        if i == 0:
+                            self.gpt_serv._next_node_public_key = self.gpt_serv._deserialize_peer_key(sec_pubkey_bytes)
+                            self.gpt_serv._aes_key_out = self.gpt_serv._derive_shared_key(
+                                self.gpt_serv._ecdh_private_key, 
+                                self.gpt_serv._next_node_public_key
+                            )
+                            
+                            # Always print this for debugging
+                            print(f"> Success! key_out (for encryption) derived for secondary {i}.")
+                            print(f"[DEBUG STARTER] key_out = {self.gpt_serv._aes_key_out[:16].hex()}...")
+                        else:
+                            print(f"> Success! Secondary node {i} initialized.")
                     else:
-                        print(f"> Success! Secondary node {i} initialized.")
+                        print(f"> Success! Secondary node {i} initialized (encryption disabled).")
                     
                     logger_wp.info(f"Secondary node {i} initialized.")
                 else:
@@ -550,6 +567,11 @@ class GPTDistributed:
                 next_node_config = self.node_config["nodes"]["starter"]
             else:
                 next_node_config = self.node_config["nodes"]["secondary"][i + 2]
+        
+        # End setup timing
+        self.gpt_serv.setup_end_time = time.perf_counter()
+        setup_duration = self.gpt_serv.setup_end_time - self.gpt_serv.setup_start_time
+        print(f"\n[TIMING] Setup completed in {setup_duration:.3f}s ({setup_duration*1000:.1f}ms)\n")
 
         return out
     def stop_nodes(self) -> int:
