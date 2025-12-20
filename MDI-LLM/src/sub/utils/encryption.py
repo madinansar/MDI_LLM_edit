@@ -33,17 +33,17 @@ def aes_encrypt_tensor_quantized(tensor: torch.Tensor, key: bytes) -> tuple:
     start = time.time()
     nonce = os.urandom(12)
     
-    # Get tensor dtype and convert to CPU
+    # Get tensor dtype
     dtype_name = str(tensor.dtype).split(".")[-1]
-    tensor_cpu = tensor.detach().cpu()
     
+    # Optimize: Chain operations instead of intermediate variables
     # Special handling for bfloat16 (not directly supported by numpy)
     if dtype_name == 'bfloat16':
-        # Convert bfloat16 to uint16 view for byte serialization
-        data = tensor_cpu.view(torch.uint16).numpy().tobytes()
+        # Convert bfloat16 to uint16 view for byte serialization (chained)
+        data = tensor.detach().cpu().view(torch.uint16).numpy().tobytes()
     else:
-        # Direct byte conversion for other dtypes
-        data = tensor_cpu.numpy().tobytes()
+        # Direct byte conversion for other dtypes (chained)
+        data = tensor.detach().cpu().numpy().tobytes()
     
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
     ciphertext, tag = cipher.encrypt_and_digest(data)

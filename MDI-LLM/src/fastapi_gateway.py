@@ -160,7 +160,7 @@ def generate(request: GenerateRequest):
             device=DEFAULT_CONFIG["device"],
             dtype=DEFAULT_CONFIG["dtype"],
             model_seq_length=DEFAULT_CONFIG["sequence_length"],
-            verb=True,  # Reduce verbosity in API mode
+            verb=False,  # Disable verbose debug output in production
             plots=False,  # Disable plots in API mode
         )
         
