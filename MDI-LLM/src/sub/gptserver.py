@@ -54,6 +54,7 @@ from sub.submodels import SecondaryNode, StarterNode, FinisherNode #madina
 from sub.utils.encryption import (aes_encrypt_tensor_quantized, aes_decrypt_tensor_quantized,
                                    generate_ecdh_keypair, serialize_public_key, 
                                    deserialize_public_key, derive_shared_key)
+from sub.vision_processor import VisionProcessor
 
 from datetime import datetime
 import traceback
@@ -402,7 +403,7 @@ class GPTServer:
 
     # ---------------------------------------------------------------------------------
     def launch_starter(
-        self, n_samples: int, max_tokens: int, prompt: Optional[str] = None
+        self, n_samples: int, max_tokens: int, prompt: Optional[str] = None, images: Optional[list] = None
     ) -> Tuple[List[str], List[Tuple[int, float]]]:
         """
         Launch processing thread in starter node.
@@ -414,6 +415,7 @@ class GPTServer:
             n_samples: number of produced samples (pieces of text)
             max_tokens: max. number of tokens per sample
             prompt: prompt from command line argument (can be prompt itself or FILE:...)
+            images: optional list of images for vision-language models (URLs, paths, PIL Images, base64)
 
         Returns:
             generated text samples (list of strings)
@@ -433,6 +435,7 @@ class GPTServer:
             kwargs={
                 "max_new_tokens": max_tokens,
                 "prompt": prompt,
+                "images": images,
                 "metrics": metrics_dict,
             },
         )
@@ -449,6 +452,7 @@ class GPTServer:
         *,
         max_new_tokens: Optional[int] = None,
         prompt: Optional[str] = None,
+        images: Optional[list] = None,
         metrics: Optional[Dict] = None,
     ):
         """
@@ -475,6 +479,7 @@ class GPTServer:
             max_new_tokens (starter only): maximum number of tokens per generated
                 sample
             prompt (starter only): string containing the prompt or "FILE:<filename.txt>"
+            images (starter only): optional list of images for vision-language models
             metrics (starter only): dict where the metrics will be inserted (keys:
                 "gen_text" and "gen_time")
         """
@@ -505,7 +510,7 @@ class GPTServer:
             logger_wp.info("Starting generation loop")
 
             out_text, gen_time = self._starter_loop(
-                n_samples, prompt, max_new_tokens=max_new_tokens
+                n_samples, prompt, max_new_tokens=max_new_tokens, images=images
             )
 
             if metrics is not None:
@@ -902,7 +907,7 @@ class GPTServer:
     # ---- Main Loops -----------------------------------------------------------------
 
     def _starter_loop(
-        self, n_samples: int, prompt: Optional[str] = None, **kwargs
+        self, n_samples: int, prompt: Optional[str] = None, images: Optional[list] = None, **kwargs
     ) -> Tuple[List[str], List[Tuple[int, float]]]:
         """
         Generation loop for the starter node only.
@@ -911,6 +916,7 @@ class GPTServer:
             n_samples: number of produced samples
             prompt: either the prompt itself or a string of the type "FILE:<prompt.txt>"
                 containing each prompt as a separate paragraph
+            images: optional list of images for vision-language models
 
         Returns:
             list containing the `n_nodes` generated samples
@@ -962,10 +968,64 @@ class GPTServer:
 
         assert len(start_styled) == n_samples
 
+        # Process images for vision-language models
+        pixel_values_list = None
+        vision_token_masks = None
+        
+        if images is not None and len(images) > 0 and self.model_config.is_multimodal:
+            if VERB:
+                print(f"[INFO] Processing {len(images)} images for vision-language model")
+            
+            # Initialize vision processor
+            vision_processor = VisionProcessor(
+                patch_size=self.model_config.vision_patch_size or 14
+            )
+            
+            # Process all images
+            pixel_values_list = []
+            for img in images:
+                pixel_values, *_ = vision_processor.process_image(img, device=self.torch_model_device)
+                pixel_values_list.append(pixel_values)
+            
+            # For multimodal, insert vision token placeholders in prompts
+            # Qwen2-VL format: "<|vision_start|><|image_pad|><|vision_end|> {text}"
+            vision_start_token = self.model_config.vision_start_token_id or 151652
+            vision_end_token = self.model_config.vision_end_token_id or 151653
+            vision_pad_token = self.model_config.image_token_id or 151654
+            
+            # Create vision token masks for each sample
+            vision_token_masks = []
+
         idx = [
             self.tok.encode(txt, device=self.torch_model_device).view(1, -1)
             for txt in start_styled
         ]
+        
+        # If we have images, prepend vision tokens
+        if pixel_values_list is not None and len(pixel_values_list) > 0:
+            # For each sample, prepend: [vision_start, vision_pad (for each patch), vision_end]
+            for i in range(len(idx)):
+                img_idx = i % len(pixel_values_list)  # Cycle through images if fewer than samples
+                num_patches = pixel_values_list[img_idx].shape[0]  # Number of patches
+                
+                # Create vision token sequence
+                vision_tokens = torch.tensor(
+                    [vision_start_token] + [vision_pad_token] * num_patches + [vision_end_token],
+                    device=self.torch_model_device,
+                    dtype=torch.long
+                ).unsqueeze(0)
+                
+                # Prepend to text tokens
+                idx[i] = torch.cat([vision_tokens, idx[i]], dim=1)
+                
+                # Create mask: True for vision_pad tokens, False for text
+                mask = torch.zeros(idx[i].shape[1], dtype=torch.bool, device=self.torch_model_device)
+                mask[1:1+num_patches] = True  # Mark vision_pad positions
+                vision_token_masks.append(mask)
+                
+            if VERB:
+                print(f"[INFO] Added vision tokens: {num_patches} patches per image")
+                print(f"[INFO] Total sequence length with vision: {idx[0].shape[1]} tokens")
         # >>>>
 
         # Initialize RoPE cache and attention mask
@@ -1211,7 +1271,17 @@ class GPTServer:
                                 block.attn.kv_cache = curr_kvcache[ind_b]
 
                             # Forward in local model (first piece)
-                            idx_cond = self.model(idx_cond, self.input_pos[sample_id])
+                            # For multimodal models, pass pixel_values and vision_token_mask on first iteration
+                            if self.iter_ind[sample_id] == 0 and pixel_values_list is not None:
+                                img_idx = sample_id % len(pixel_values_list)
+                                idx_cond = self.model(
+                                    idx_cond,
+                                    self.input_pos[sample_id],
+                                    pixel_values=pixel_values_list[img_idx],
+                                    vision_token_mask=vision_token_masks[sample_id] if vision_token_masks else None
+                                )
+                            else:
+                                idx_cond = self.model(idx_cond, self.input_pos[sample_id])
                             # CRITICAL: Ensure output stays in model's dtype (float16)
                             if idx_cond.dtype != self.ptdtype:
                                 idx_cond = idx_cond.to(dtype=self.ptdtype)
@@ -1458,6 +1528,9 @@ class GPTServer:
                         
 
                         # Forward pass
+                        # Ensure dtype matches lm_head weights
+                        if hasattr(self.model, 'lm_head') and hasattr(self.model.lm_head, 'weight') and self.model.lm_head.weight.dtype == torch.bfloat16:
+                            idx = idx.to(torch.bfloat16)
                         outs = self.model(idx, input_pos=self.input_pos[sample_id])
                         # CRITICAL: For non-finisher nodes, ensure output stays in model's dtype (float16)
                         if not isinstance(self.model, FinisherNode) and outs.dtype != self.ptdtype:

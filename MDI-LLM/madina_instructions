@@ -116,14 +116,14 @@ python3.10 src/fastapi_gateway.py --ckpt ./src/checkpoints/Qwen/Qwen3-0.6B --nod
 
 
 Qwen 2 nodes:
-ENABLE_ENCRYPTION=0 \
+ENABLE_ENCRYPTION=1 \
 python3.10 ./src/secondary.py \
 --chunk ./src/checkpoints/Qwen/Qwen3-1.7B/chunks/2nodes_finisher/model_secondary0.pth \
 --nodes-config ./src/settings_distr/config_2nodes_cpu.json 0 \
 --dtype bfloat16 \
 -v
 
-ENABLE_ENCRYPTION=0 \
+ENABLE_ENCRYPTION=1 \
 python3.10 src/fastapi_gateway.py \
 --host 0.0.0.0 \
 --port 8000 \
@@ -132,12 +132,6 @@ python3.10 src/fastapi_gateway.py \
 --sequence-length 1024
 
 python3.10 ./src/prepare_model.py Qwen/Qwen3-1.7B --n-nodes 4 --skip-convert
-
-
-
-
-Qwen 2 nodes:
-
 
 
 Qwen 4 nodes
@@ -186,3 +180,8 @@ python3.10 src/fastapi_gateway.py \
 --ckpt ./src/checkpoints/Qwen/Qwen3-1.7B \
 --nodes-config ./src/settings_distr/config_m3pro_3nodes.json \
 --sequence-length 1024
+
+
+
+VLM
+python3.10 ./src/prepare_model.py Qwen/Qwen3-VL-2B-Instruct --n-nodes 1 --skip-convert

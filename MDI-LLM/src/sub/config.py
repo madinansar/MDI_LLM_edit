@@ -73,7 +73,7 @@ N_LAYERS_NODES = {
         16: {"N_LAYERS_START": 6, "N_LAYERS_SECONDARY": 10},  # Llama 3.2 1B
         22: {"N_LAYERS_START": 10, "N_LAYERS_SECONDARY": 12},  # TinyLlama
         24: {"N_LAYERS_START": 10, "N_LAYERS_SECONDARY": 14},  # gpt2-medium
-        28: {"N_LAYERS_START": 12, "N_LAYERS_SECONDARY": 16},  # Llama 3.2 3B
+        28: {"N_LAYERS_START": 12, "N_LAYERS_SECONDARY": 16},  # Llama 3.2 3B, Qwen2-VL-2B (language model)
         32: {"N_LAYERS_START": 14, "N_LAYERS_SECONDARY": 18},  # Llama 2, Llama 3 8B
         36: {"N_LAYERS_START": 16, "N_LAYERS_SECONDARY": 20},  # gpt2-large
         48: {"N_LAYERS_START": 22, "N_LAYERS_SECONDARY": 26},  # gpt2-xl
@@ -1747,6 +1747,37 @@ qwen = [
         n_query_groups=8,
         rope_base=1000000,
         use_qk_norm=True,
+    ),
+    # https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct/blob/main/config.json
+    dict(
+        name="Qwen2-VL-2B-Instruct",
+        hf_config=dict(org="Qwen", name="Qwen2-VL-2B-Instruct"),
+        block_size=32768,
+        vocab_size=152064,
+        padded_vocab_size=152064,
+        padding_multiple=512,
+        n_layer=28,
+        n_head=16,
+        head_size=128,
+        n_embd=1536,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        norm_class_name="RMSNorm",
+        norm_eps=1e-6,
+        mlp_class_name="LLaMAMLP",
+        intermediate_size=8960,
+        n_query_groups=2,
+        rope_base=1000000,
+        # Vision-specific configuration
+        vision_encoder_embed_dim=1536,
+        vision_encoder_depth=32,
+        vision_encoder_num_heads=16,
+        vision_patch_size=14,  # Qwen2-VL uses 14x14 patches
+        vision_start_token_id=151652,
+        vision_end_token_id=151653,
+        image_token_id=151655,
+        use_mrope=True,
     ),
 ]
 configs.extend(qwen)

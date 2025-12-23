@@ -260,7 +260,14 @@ class GPTDistributed:
                 )
             else:
                 # Here if either model was already split or running in standalone mode
-                if has_lit_model:
+                yaml_config_path = self.ckpt_dir / "model_config.yaml"
+                if yaml_config_path.exists():
+                    # Prefer loading from YAML if it exists (preserves vision parameters)
+                    print(f"[STARTER] Loading config from {yaml_config_path}")
+                    from .model import Config
+                    self.model_config = Config.from_file(yaml_config_path)
+                    print(f"[STARTER] Config loaded - is_multimodal: {self.model_config.is_multimodal}")
+                elif has_lit_model:
                     self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
                 else:
                     # Load config from HF format
@@ -322,6 +329,13 @@ class GPTDistributed:
                 self.ckpt_dir or self.chunk_path
             ), "Need to specify at least 1 between the chunk path and the checkpoint directory"
 
+            # Derive ckpt_dir from chunk_path if not provided
+            # chunk_path format: .../checkpoints/MODEL_NAME/chunks/Xnodes_finisher/model_secondaryY.pth
+            if not self.ckpt_dir and self.chunk_path:
+                # Go up from chunk file to ckpt dir: file -> Xnodes_finisher -> chunks -> MODEL_NAME
+                self.ckpt_dir = self.chunk_path.parent.parent.parent
+                print(f"[SECONDARY] Derived ckpt_dir from chunk_path: {self.ckpt_dir}")
+
             # Can either pass "secondary:ind" or secondary_index=ind
             split_type = self.node_type.split(":")
             self.secondary_index = (
@@ -358,12 +372,20 @@ class GPTDistributed:
                 )
 
             if self.ckpt_dir:
-                # Try HF format first, fall back to LitGPT format
-                has_hf_config = (self.ckpt_dir / "config.json").exists()
-                if has_hf_config:
-                    self.model_config, _ = load_from_hf_direct(self.ckpt_dir, config_only=True)
+                # Try loading from YAML first to preserve vision parameters
+                yaml_config_path = self.ckpt_dir / "model_config.yaml"
+                if yaml_config_path.exists():
+                    print(f"[SECONDARY] Loading config from {yaml_config_path}")
+                    from .model import Config
+                    self.model_config = Config.from_file(yaml_config_path)
+                    print(f"[SECONDARY] Config loaded - is_multimodal: {self.model_config.is_multimodal}")
                 else:
-                    self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
+                    # Try HF format first, fall back to LitGPT format
+                    has_hf_config = (self.ckpt_dir / "config.json").exists()
+                    if has_hf_config:
+                        self.model_config, _ = load_from_hf_direct(self.ckpt_dir, config_only=True)
+                    else:
+                        self.model_config, _ = load_from_pt(self.ckpt_dir, config_only=True)
             else:
                 self.model_config = None
 
@@ -386,6 +408,7 @@ class GPTDistributed:
         n_samples: Optional[int] = None,
         tokens_per_sample: Optional[int] = None,
         prompt: Optional[str] = None,
+        images: Optional[list] = None,
     ):
         """
         Main class entrypoint.
@@ -403,6 +426,8 @@ class GPTDistributed:
                 (regardless of the prompt length).
             prompt (starter only): prompt (as received from command line) - can be
                 FILE:<...>
+            images (starter only): optional list of images for vision-language models.
+                Can be URLs, file paths, PIL Images, or base64 strings.
         """
         if self.node_type == "starter":
             assert n_samples and tokens_per_sample
@@ -413,7 +438,7 @@ class GPTDistributed:
 
             try:
                 out_text, time_gen = self.gpt_serv.launch_starter(
-                    n_samples, tokens_per_sample, prompt
+                    n_samples, tokens_per_sample, prompt, images=images
                 )
                 print("-------------------------------------------------")
                 print("Produced output:\n")

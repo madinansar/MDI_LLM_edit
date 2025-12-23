@@ -101,6 +101,23 @@ class GenerateResponse(BaseModel):
     tokens_generated: int = Field(..., description="Number of tokens generated per sample")
     model: str = Field(..., description="Model name used")
 
+class MultimodalGenerateRequest(BaseModel):
+    """Request model for multimodal (vision + text) generation"""
+    prompt: str = Field(..., description="Input text prompt")
+    images: List[str] = Field(..., description="List of image URLs, file paths, or base64 strings")
+    max_tokens: int = Field(
+        DEFAULT_CONFIG["default_max_tokens"], 
+        ge=1, 
+        le=2048, 
+        description="Maximum number of tokens to generate"
+    )
+    n_samples: int = Field(
+        DEFAULT_CONFIG["default_n_samples"], 
+        ge=1, 
+        le=10, 
+        description="Number of samples to generate"
+    )
+
 @app.get("/")
 async def root():
     """Health check endpoint"""
@@ -160,7 +177,7 @@ def generate(request: GenerateRequest):
             device=DEFAULT_CONFIG["device"],
             dtype=DEFAULT_CONFIG["dtype"],
             model_seq_length=DEFAULT_CONFIG["sequence_length"],
-            verb=False,  # Disable verbose debug output in production
+            verb=True,  # Disable verbose debug output in production
             plots=False,  # Disable plots in API mode
         )
         
@@ -202,6 +219,93 @@ def generate(request: GenerateRequest):
     except Exception as e:
         logger.error(f"Generation failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
+@app.post("/generate/multimodal", response_model=GenerateResponse)
+def generate_multimodal(request: MultimodalGenerateRequest):
+    """
+    Generate text based on images and text prompt using multimodal vision-language model.
+    
+    Supports Qwen2-VL and other vision-language models.
+    Images can be provided as:
+    - URLs (http:// or https://)
+    - Local file paths
+    - Base64 encoded strings (data:image/...)
+    
+    The secondary node(s) must be running before calling this endpoint.
+    """
+    try:
+        logger.info(f"Received multimodal generation request: {len(request.images)} images, prompt='{request.prompt[:50]}...'")
+        
+        # Resolve paths
+        ckpt_path = Path(DEFAULT_CONFIG["ckpt_dir"]).resolve()
+        config_path = Path(DEFAULT_CONFIG["nodes_config"]).resolve()
+        
+        if not ckpt_path.exists():
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Checkpoint directory not found: {ckpt_path}"
+            )
+        if not config_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Nodes config file not found: {config_path}"
+            )
+        
+        # Initialize distributed model
+        logger.info("Initializing GPTDistributed for multimodal inference...")
+        gpt_distr = GPTDistributed(
+            node_type="starter",
+            config_file=config_path,
+            ckpt_dir=ckpt_path,
+            device=DEFAULT_CONFIG["device"],
+            dtype=DEFAULT_CONFIG["dtype"],
+            model_seq_length=DEFAULT_CONFIG["sequence_length"],
+            verb=False,
+            plots=False,
+        )
+        
+        # Check if model is multimodal
+        if not gpt_distr.model_config.is_multimodal:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model {gpt_distr.full_model_name} is not a vision-language model. Use /generate endpoint for text-only models."
+            )
+        
+        # Configure nodes
+        logger.info("Configuring secondary nodes...")
+        if not gpt_distr.configure_nodes(n_samples=request.n_samples):
+            raise HTTPException(status_code=500, detail="Failed to initialize network nodes")
+        
+        # Launch generation with images
+        logger.info(f"Launching multimodal generation with {len(request.images)} images...")
+        out_text, time_gen = gpt_distr.gpt_serv.launch_starter(
+            request.n_samples,
+            request.max_tokens,
+            request.prompt,
+            images=request.images
+        )
+        
+        # Extract generation time
+        generation_time = None
+        if time_gen and len(time_gen) > 0:
+            generation_time = time_gen[-1][1]
+        
+        logger.info(f"Multimodal generation completed in {generation_time:.2f}s" if generation_time else "Generation completed")
+        
+        # Stop nodes
+        logger.info("Stopping nodes...")
+        gpt_distr.stop_nodes()
+        
+        return GenerateResponse(
+            samples=out_text,
+            generation_time=generation_time,
+            tokens_generated=request.max_tokens,
+            model=gpt_distr.full_model_name
+        )
+        
+    except Exception as e:
+        logger.error(f"Multimodal generation failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Multimodal generation failed: {str(e)}")
 
 @app.post("/configure")
 async def configure(

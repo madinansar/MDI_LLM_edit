@@ -1011,8 +1011,12 @@ def load_from_hf_direct(
 
 
 def save_config(config: "Config", checkpoint_dir: Path) -> None:
+    config_path = checkpoint_dir / "model_config.yaml"
+    # Skip if file already exists (don't overwrite manually configured files)
+    if config_path.exists():
+        return
     config_dict = asdict(config)
-    with open(checkpoint_dir / "model_config.yaml", "w", encoding="utf-8") as fp:
+    with open(config_path, "w", encoding="utf-8") as fp:
         yaml.dump(config_dict, fp)
 
 

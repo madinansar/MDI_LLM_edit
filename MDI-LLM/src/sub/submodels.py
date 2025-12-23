@@ -23,7 +23,7 @@ from typing import Any, Dict, Mapping, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 
-from sub.model import Block, Config, build_mask_cache, build_rope_cache
+from sub.model import Block, Config, build_mask_cache, build_rope_cache, VisionEncoder
 from .utils import init_from_state_dict
 
 """
@@ -130,7 +130,7 @@ class NodePrototype(nn.Module):
 
 
 class StarterNode(NodePrototype):
-    """Starter node"""
+    """Starter node with optional vision encoder for multimodal models"""
 
     params_init = False
 
@@ -143,6 +143,21 @@ class StarterNode(NodePrototype):
         super().__init__(**kwargs)
         assert config.padded_vocab_size is not None
         self.config = config
+        
+        # Check if this is a multimodal model
+        self.is_multimodal = config.is_multimodal
+        
+        # Add vision encoder if multimodal
+        if self.is_multimodal:
+            self.vision_encoder = VisionEncoder(config)
+            # Projection from vision embeddings to language model dimension
+            self.vision_projection = nn.Linear(
+                config.vision_encoder_embed_dim,
+                config.n_embd,
+                bias=False,
+            )
+            if self.verb:
+                print(f"Initialized vision encoder with {config.vision_encoder_depth} layers")
 
         self.transformer = nn.ModuleDict(
             dict(
@@ -183,16 +198,20 @@ class StarterNode(NodePrototype):
         input_pos: Optional[torch.Tensor] = None,
         *,
         first_pass: Optional[bool] = True,
+        pixel_values: Optional[torch.Tensor] = None,
+        vision_token_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
-        Forward pass - starter
+        Forward pass - starter with optional vision support
 
         Args:
-            idx: input tensor
-            input_pos:
-            first_pass: boolean value - if True (default) it indicates the first forward
-                pass (embedding and transformer blocks), else it will pass the input
-                through the output layers of the LLM (`ln_f`, `lm_head`)
+            idx: input token tensor [batch, seq_len]
+            input_pos: position indices for KV cache
+            first_pass: if True (default), process embeddings and transformer blocks,
+                       else process output layers (ln_f, lm_head)
+            pixel_values: optional image tensor [batch, 3, height, width]
+            vision_token_mask: boolean mask [batch, seq_len] indicating positions
+                              where vision embeddings should be inserted
         """
         if first_pass:
             B, T = idx.shape  # Batch x (Time dimension)
@@ -215,12 +234,40 @@ class StarterNode(NodePrototype):
                 sin = self.sin[:T]
                 mask = None
 
-            # The logits returned are the ones in row idx of the table
-            # This is arranged in a tensor of size Batch x Time x Channel(=N_EMBED)
+            # Get text embeddings
             x = self.transformer.wte(idx)
             if self.config.scale_embeddings:
                 x = x * (self.config.n_embd**0.5)
+            
+            # Process and merge vision features if provided
+            if self.is_multimodal and pixel_values is not None and vision_token_mask is not None:
+                # Encode images to visual embeddings
+                # pixel_values: [batch, 3, H, W] or [batch*num_images, 3, H, W]
+                vision_features = self.vision_encoder(pixel_values)  # [batch, num_patches, vision_dim]
+                
+                # Project to language model dimension
+                vision_embeds = self.vision_projection(vision_features)  # [batch, num_patches, n_embd]
+                
+                # Merge vision embeddings into text sequence
+                # vision_token_mask shape: [batch, seq_len]
+                # We need to replace the positions marked as True with vision embeddings
+                
+                # Flatten vision embeddings for easier insertion
+                # If we have multiple images, they should be flattened sequentially
+                vision_embeds_flat = vision_embeds.reshape(-1, self.config.n_embd)
+                
+                # Insert vision embeddings at masked positions
+                # This assumes vision_token_mask has exactly the same number of True values
+                # as we have vision embedding tokens
+                if vision_token_mask.any():
+                    mask_indices = vision_token_mask.nonzero(as_tuple=False)
+                    if mask_indices.size(0) == vision_embeds_flat.size(0):
+                        # Replace text embeddings with vision embeddings at specified positions
+                        x[vision_token_mask] = vision_embeds_flat
+                    elif self.verb:
+                        print(f"Warning: vision token mask size {mask_indices.size(0)} != vision embeds size {vision_embeds_flat.size(0)}")
 
+            # Pass through transformer blocks
             for block in self.transformer.h:
                 x = block(x, cos, sin, mask, input_pos)
 
@@ -382,9 +429,13 @@ class FinisherNode(NodePrototype):
         # Run through final layers
         print(f"[DEBUG FinisherNode] Before ln_f: idx.dtype = {idx.dtype}")
         print(f"[DEBUG FinisherNode] ln_f weight dtype = {self.transformer.ln_f.weight.dtype}")
+        if idx.dtype != self.transformer.ln_f.weight.dtype:
+            idx = idx.to(self.transformer.ln_f.weight.dtype)
         idx = self.transformer.ln_f(idx)
         print(f"[DEBUG FinisherNode] After ln_f: idx.dtype = {idx.dtype}")
         print(f"[DEBUG FinisherNode] lm_head weight dtype = {self.lm_head.weight.dtype}")
+        if idx.dtype != self.lm_head.weight.dtype:
+            idx = idx.to(self.lm_head.weight.dtype)
         logits = self.lm_head(idx)
         # --- End new part ---
 

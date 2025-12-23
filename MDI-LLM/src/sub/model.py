@@ -151,6 +151,16 @@ class Config:
     n_expert: int = 0
     n_expert_per_token: int = 0
     use_qk_norm: bool = False
+    
+    # Vision-Language Model fields (for models like Qwen2-VL)
+    vision_encoder_embed_dim: Optional[int] = None
+    vision_encoder_depth: Optional[int] = None
+    vision_encoder_num_heads: Optional[int] = None
+    vision_patch_size: Optional[int] = None
+    vision_start_token_id: Optional[int] = None
+    vision_end_token_id: Optional[int] = None
+    image_token_id: Optional[int] = None
+    use_mrope: bool = False  # Multimodal RoPE (for Qwen2-VL)
 
     def __post_init__(self):
         if not self.name:
@@ -184,6 +194,11 @@ class Config:
             self.intermediate_size = 4 * self.n_embd
 
         self.rope_n_elem = int(self.rotary_percentage * self.head_size)
+    
+    @property
+    def is_multimodal(self) -> bool:
+        """Check if this is a vision-language model."""
+        return self.vision_encoder_embed_dim is not None
 
     @classmethod
     def from_name(cls, name: str, **kwargs: Any) -> Self:
@@ -260,7 +275,7 @@ class Config:
         config_kwargs["norm_eps"] = hf_config.get("rms_norm_eps", hf_config.get("layer_norm_eps", 1e-5))
         
         # Determine model architecture
-        if hf_model_type in ("llama", "qwen2", "qwen3", "mistral"):
+        if hf_model_type in ("llama", "qwen2", "qwen3", "mistral", "qwen2_vl", "qwen3_vl"):
             config_kwargs["mlp_class_name"] = "LLaMAMLP"
             config_kwargs["norm_class_name"] = "RMSNorm"
             config_kwargs["rotary_percentage"] = 1.0
@@ -268,10 +283,13 @@ class Config:
             config_kwargs["bias"] = False
             config_kwargs["lm_head_bias"] = False
             
-            # Qwen3 specific
-            if hf_model_type == "qwen3":
+            # Specific overrides for Qwen VL models
+            if hf_model_type in ("qwen3", "qwen2_vl", "qwen3_vl"):
                 config_kwargs["use_qk_norm"] = True
                 config_kwargs["padding_multiple"] = 512
+                # If Qwen VL specifically needs bias=True (unlike standard Qwen2), set it here:
+                # config_kwargs["bias"] = True
+
         elif hf_model_type == "gemma":
             config_kwargs["mlp_class_name"] = "GemmaMLP"
             config_kwargs["norm_class_name"] = "RMSNorm"
@@ -294,7 +312,7 @@ class Config:
         
         # Override with any provided kwargs
         config_kwargs.update(kwargs)
-        
+
         return cls(**config_kwargs)
 
     # FIXME: make it compliant
@@ -359,6 +377,106 @@ class Config:
             "n_expert_per_token": self.n_expert_per_token,
             "use_qk_norm": self.use_qk_norm,
         }
+
+
+class VisionEncoder(nn.Module):
+    """
+    Vision Transformer encoder for Qwen2-VL.
+    Processes images into visual embeddings that can be fused with text.
+    """
+    
+    def __init__(self, config: Config) -> None:
+        super().__init__()
+        
+        if not config.is_multimodal:
+            raise ValueError("VisionEncoder requires a multimodal config")
+        
+        self.config = config
+        self.patch_size = config.vision_patch_size
+        self.embed_dim = config.vision_encoder_embed_dim
+        self.depth = config.vision_encoder_depth
+        self.num_heads = config.vision_encoder_num_heads
+        
+        # Patch embedding: Conv2d that extracts patches
+        self.patch_embed = nn.Conv2d(
+            in_channels=3,
+            out_channels=self.embed_dim,
+            kernel_size=self.patch_size,
+            stride=self.patch_size,
+            bias=False,
+        )
+        
+        # Vision transformer blocks
+        # Using standard transformer encoder layers
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=self.embed_dim,
+            nhead=self.num_heads,
+            dim_feedforward=self.embed_dim * 4,
+            dropout=0.0,
+            activation='gelu',
+            batch_first=True,
+            norm_first=True,
+        )
+        self.transformer = nn.TransformerEncoder(
+            encoder_layer,
+            num_layers=self.depth,
+        )
+        
+        # Final layer norm
+        self.ln_post = RMSNorm(self.embed_dim, eps=config.norm_eps)
+        
+    def forward(self, pixel_values: torch.Tensor) -> torch.Tensor:
+        """
+        Process images into visual embeddings.
+        
+        Args:
+            pixel_values: Image tensor [batch, 3, height, width]
+                         height and width should be multiples of patch_size
+        
+        Returns:
+            visual_embeds: [batch, num_patches, embed_dim]
+                          where num_patches = (height/patch_size) * (width/patch_size)
+        """
+        batch_size, channels, height, width = pixel_values.shape
+        
+        # Validate dimensions
+        if height % self.patch_size != 0 or width % self.patch_size != 0:
+            raise ValueError(
+                f"Image dimensions ({height}x{width}) must be divisible by patch_size ({self.patch_size})"
+            )
+        
+        # Extract patches: [B, embed_dim, H/P, W/P]
+        x = self.patch_embed(pixel_values)
+        
+        # Flatten patches: [B, embed_dim, num_patches] -> [B, num_patches, embed_dim]
+        num_patches_h = height // self.patch_size
+        num_patches_w = width // self.patch_size
+        x = x.flatten(2).transpose(1, 2)  # [B, num_patches, embed_dim]
+        
+        # Add 2D positional embeddings
+        # For Qwen2-VL, this is part of M-ROPE which is more complex
+        # For now, we use learnable positional embeddings
+        # TODO: Implement proper M-ROPE for vision
+        if not hasattr(self, 'pos_embed'):
+            # Create positional embeddings on first forward pass
+            max_patches = (1024 // self.patch_size) ** 2  # Support up to 1024x1024 images
+            self.pos_embed = nn.Parameter(
+                torch.zeros(1, max_patches, self.embed_dim, device=x.device, dtype=x.dtype)
+            )
+            # Initialize with truncated normal
+            nn.init.trunc_normal_(self.pos_embed, std=0.02)
+        
+        # Add positional embeddings
+        num_patches = x.shape[1]
+        x = x + self.pos_embed[:, :num_patches, :]
+        
+        # Pass through transformer
+        x = self.transformer(x)
+        
+        # Final layer norm
+        x = self.ln_post(x)
+        
+        return x
 
 
 class GPT(nn.Module):
